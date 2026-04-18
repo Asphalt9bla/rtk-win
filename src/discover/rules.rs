@@ -730,8 +730,14 @@ pub const RULES: &[RtkRule] = &[
         rtk_cmd: "rtk pulumi",
         rewrite_prefixes: &["pulumi"],
         category: "Infra",
-        savings_pct: 70.0,
-        subcmd_savings: &[],
+        savings_pct: 45.0,
+        subcmd_savings: &[
+            ("up", 66.0),
+            ("destroy", 72.0),
+            ("refresh", 35.0),
+            ("preview", 25.0),
+            ("stack", 29.0),
+        ],
         subcmd_status: &[],
     },
     RtkRule {

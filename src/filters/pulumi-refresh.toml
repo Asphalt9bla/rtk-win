@@ -22,10 +22,8 @@ strip_lines_matching = [
   "^\\s+at\\s+processTicksAndRejections",
   "^\\s+promise:\\s+Promise",
   "^\\s+\\[Circular",
-  "^\\s*\\}\\s*$",
   "^\\s*<ref\\s+\\*\\d",
 ]
-max_lines = 60
 on_empty = "pulumi refresh: no drift"
 
 [[tests.pulumi-refresh]]

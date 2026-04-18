@@ -19,13 +19,11 @@ strip_lines_matching = [
   "^\\s+at\\s+processTicksAndRejections",
   "^\\s+promise:\\s+Promise",
   "^\\s+\\[Circular",
-  "^\\s*\\}\\s*$",
   "^\\s*<ref\\s+\\*\\d",
   "^\\s+pulumi:pulumi:Stack\\s+\\S+\\s+running\\s*$",
   "^\\s+\\S+\\s+\\S+\\s+\\d+\\s+errors?\\s*$",
   "^\\s+\\S+\\s+\\S+(?:\\s+\\S+)?\\s+\\d+\\s+errors?\\s*$",
 ]
-max_lines = 80
 on_empty = "pulumi preview: no changes"
 
 [[tests.pulumi-preview]]
