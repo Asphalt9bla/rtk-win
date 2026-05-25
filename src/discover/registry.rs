@@ -441,22 +441,20 @@ fn strip_trailing_redirects(cmd: &str) -> (&str, &str) {
 }
 
 lazy_static! {
-    /// Matches a bash line-continuation: a backslash immediately
-    /// followed by `\n` or `\r\n`, *plus* any horizontal whitespace on
-    /// the line before AND after the break. This is what bash already
-    /// collapses to a single space before executing the command — rtk's
-    /// hook matcher needs to do the same so commands authored across
-    /// multiple lines still hit the rewrite rules. Consuming the
-    /// trailing whitespace prevents double spaces in cases like
+    /// Matches a bash line-continuation: a backslash immediately followed by
+    /// `\n` or `\r\n`, *plus* any horizontal whitespace on the line before AND
+    /// after the break. This is what bash already collapses to a single space
+    /// before executing the command — rtk's hook matcher needs to do the same
+    /// so commands authored across multiple lines still hit the rewrite rules.
+    /// Consuming the trailing whitespace prevents double spaces in cases like
     /// `git diff \<NL>HEAD~1`.
     static ref LINE_CONTINUATION_RE: Regex =
         Regex::new(r"(?m)[ \t\x0B\x0C]*\\\r?\n[ \t\x0B\x0C]*").unwrap();
 }
 
-/// Replace every bash line continuation with a single space, mirroring
-/// what bash does before dispatching the command. Returns a borrowed
-/// `&str` when the input contains no continuations, so the common
-/// fast path allocates nothing.
+/// Replace every bash line continuation with a single space, mirroring what
+/// bash does before dispatching the command. Returns a borrowed `&str` when the
+/// input contains no continuations, so the common fast path allocates nothing.
 fn collapse_line_continuations(s: &str) -> std::borrow::Cow<'_, str> {
     LINE_CONTINUATION_RE.replace_all(s, " ")
 }
@@ -470,7 +468,7 @@ fn collapse_line_continuations(s: &str) -> std::borrow::Cow<'_, str> {
 /// (`[hooks].transparent_prefixes` in `config.toml`) before routing.
 ///
 /// A transparent prefix is a wrapper command that doesn't change *what* is
-/// being run, only *how* it's run --- e.g. `docker exec mycontainer`,
+/// being run, only *how* it's run — e.g. `docker exec mycontainer`,
 /// `direnv exec .`, `poetry run`, or `bundle exec`. Stripping it lets the inner
 /// command match a filter; the prefix is then re-prepended to the rewrite. The
 /// built-in [`SHELL_PREFIX_BUILTINS`] (`noglob`, `command`, `builtin`, `exec`,
@@ -485,11 +483,10 @@ pub fn rewrite_command(
     excluded: &[String],
     transparent_prefixes: &[String],
 ) -> Option<String> {
-    // Bash line continuations (`\<NL>`, `\<CRLF>`) and the leading
-    // whitespace that follows are syntactically equivalent to a single
-    // space, but `cmd.trim()` does not unwrap them --- so a leading
-    // backslash-newline used to defeat the whole matcher. Normalize
-    // first, then trim. See issue #1564.
+    // Bash line continuations (`\<NL>`, `\<CRLF>`) and the leading whitespace that
+    // follows are syntactically equivalent to a single space, but `cmd.trim()` does
+    // not unwrap them so a leading backslash-newline used to defeat the whole matcher.
+    // Normalize first, then trim. See issue #1564.
     let normalized = collapse_line_continuations(cmd);
     let trimmed = normalized.trim();
     if trimmed.is_empty() {
