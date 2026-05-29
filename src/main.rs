@@ -1362,7 +1362,8 @@ fn main() {
     // release profile that becomes SIGABRT + coredump.
     #[cfg(unix)]
     #[allow(unsafe_code)]
-    unsafe { // nosemgrep: unsafe-block
+    // nosemgrep: unsafe-block
+    unsafe {
         libc::signal(libc::SIGPIPE, libc::SIG_DFL);
     }
 
