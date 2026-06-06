@@ -1244,8 +1244,8 @@ fn run_fallback(parse_error: clap::Error) -> Result<i32> {
                 Ok(127)
             }
         }
-    } else {
-        // No TOML match: original passthrough behaviour (Stdio::inherit, streaming)
+    } else if std::io::IsTerminal::is_terminal(&std::io::stdout()) {
+        // Terminal: passthrough so interactive apps and color work.
         let status = core::utils::resolved_command(&args[0])
             .args(&args[1..])
             .stdin(std::process::Stdio::inherit())
@@ -1256,14 +1256,37 @@ fn run_fallback(parse_error: clap::Error) -> Result<i32> {
         match status {
             Ok(s) => {
                 timer.track_passthrough(&raw_command, &format!("rtk fallback: {}", raw_command));
-
                 core::tracking::record_parse_failure_silent(&raw_command, &error_message, true);
-
                 Ok(core::utils::exit_code_from_status(&s, &raw_command))
             }
             Err(e) => {
                 core::tracking::record_parse_failure_silent(&raw_command, &error_message, false);
-                // Command not found or other OS error — single message, no duplicate Clap error
+                eprintln!("[rtk: {}]", e);
+                Ok(127)
+            }
+        }
+    } else {
+        // Piped: stream live through the global pipeline (no command filter).
+        let mut cmd = core::utils::resolved_command(&args[0]);
+        cmd.args(&args[1..]);
+        let opts = core::runner::RunOptions {
+            inherit_stdin: true,
+            tee_label: Some(raw_command.as_str()),
+            ..Default::default()
+        };
+        match core::runner::run_streamed(
+            cmd,
+            &args[0],
+            &args[1..].join(" "),
+            Box::new(core::stream::Identity),
+            opts,
+        ) {
+            Ok(code) => {
+                core::tracking::record_parse_failure_silent(&raw_command, &error_message, true);
+                Ok(code)
+            }
+            Err(e) => {
+                core::tracking::record_parse_failure_silent(&raw_command, &error_message, false);
                 eprintln!("[rtk: {}]", e);
                 Ok(127)
             }

@@ -168,9 +168,13 @@ pub fn run(
         ),
         RunMode::Streamed(filter) => {
             let filter = Pipeline::for_layers(opts.layers).stream(filter);
-            let result =
-                stream::run_streaming(&mut cmd, StdinMode::Null, FilterMode::Streaming(filter))
-                    .with_context(|| format!("Failed to run {}", tool_name))?;
+            let stdin_mode = if opts.inherit_stdin {
+                StdinMode::Inherit
+            } else {
+                StdinMode::Null
+            };
+            let result = stream::run_streaming(&mut cmd, stdin_mode, FilterMode::Streaming(filter))
+                .with_context(|| format!("Failed to run {}", tool_name))?;
 
             if let Some(label) = opts.tee_label {
                 if let Some(hint) =
