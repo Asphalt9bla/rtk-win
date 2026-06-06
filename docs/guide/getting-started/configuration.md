@@ -49,6 +49,10 @@ enabled = true              # anonymous daily ping — see Telemetry & Privacy f
 
 [hooks]
 exclude_commands = []       # commands to never auto-rewrite
+
+[levels]
+decorative = "reasonable"   # chrome removal aggressivity: "light" | "reasonable" | "high"
+exclude = []                # extra commands to leave unfiltered (raw passthrough)
 ```
 
 For full details on what is collected, opt-out options, and GDPR rights, see [Telemetry & Privacy](../resources/telemetry.md).
@@ -58,10 +62,49 @@ For full details on what is collected, opt-out options, and GDPR rights, see [Te
 | Variable | Description |
 |----------|-------------|
 | `RTK_DISABLED=1` | Disable RTK for a single command (`RTK_DISABLED=1 git status`) |
+| `RTK_DECORATIVE` | Decorative level for this invocation (`light`/`reasonable`/`high`) |
 | `RTK_TEE_DIR` | Override the tee directory |
 | `RTK_TELEMETRY_DISABLED=1` | Disable telemetry |
 | `RTK_HOOK_AUDIT=1` | Enable hook audit logging |
 | `SKIP_ENV_VALIDATION=1` | Skip env validation (useful with Next.js) |
+
+## Filter levels
+
+Before each command's own filter, RTK runs a generic pipeline of layers. Today
+that is the **decorative** layer — lossless chrome removal applied to every
+command routed through RTK (and to otherwise-unsupported commands via the global
+fallback).
+
+```toml
+[levels]
+decorative = "reasonable"
+exclude = ["mytool"]
+```
+
+| `decorative` | What it removes |
+|--------------|-----------------|
+| `light` | ANSI color codes only (fully lossless) |
+| `reasonable` (default) | ANSI + trailing whitespace + collapses blank-line runs |
+| `high` | + drops pure box-drawing / separator lines |
+
+Override for a single invocation:
+
+```bash
+RTK_DECORATIVE=high rtk <command>
+```
+
+### Excluding commands from the pipeline
+
+Raw-output commands must stay byte-exact, so RTK never filters them: `cat`,
+`head`, `tail`, `base64`, `xxd`, `hexdump`, `od`, `strings`, `dd`. Add your own
+with `[levels].exclude`:
+
+```toml
+[levels]
+exclude = ["mytool", "dump-binary"]
+```
+
+Matching is by command name (basename), so `/usr/bin/cat` and `cat` both match.
 
 ## Tee system
 
