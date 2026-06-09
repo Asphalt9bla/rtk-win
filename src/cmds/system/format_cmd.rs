@@ -2,7 +2,7 @@
 
 use crate::core::stream::exec_capture;
 use crate::core::tracking;
-use crate::core::truncate::CAP_WARNINGS;
+use crate::core::truncate::caps;
 use crate::core::utils::{package_manager_exec, resolved_command};
 use crate::prettier_cmd;
 use crate::ruff_cmd;
@@ -238,15 +238,15 @@ fn filter_black_output(output: &str) -> String {
         result.push_str("═══════════════════════════════════════\n");
 
         if !files_to_format.is_empty() {
-            const MAX_FORMAT_FILES: usize = CAP_WARNINGS;
-            for (i, file) in files_to_format.iter().take(MAX_FORMAT_FILES).enumerate() {
+            let max_format_files = caps().warnings;
+            for (i, file) in files_to_format.iter().take(max_format_files).enumerate() {
                 result.push_str(&format!("{}. {}\n", i + 1, compact_path(file)));
             }
 
-            if files_to_format.len() > MAX_FORMAT_FILES {
+            if files_to_format.len() > max_format_files {
                 result.push_str(&format!(
                     "\n... +{} more files\n",
-                    files_to_format.len() - MAX_FORMAT_FILES
+                    files_to_format.len() - max_format_files
                 ));
             }
         }

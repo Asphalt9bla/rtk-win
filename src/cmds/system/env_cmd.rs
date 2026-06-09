@@ -1,7 +1,7 @@
 //! Filters environment variables, hiding secrets and noise.
 
 use crate::core::tracking;
-use crate::core::truncate::{CAP_LIST, CAP_WARNINGS};
+use crate::core::truncate::caps;
 use anyhow::Result;
 use std::collections::HashSet;
 use std::env;
@@ -72,12 +72,12 @@ pub fn run(filter: Option<&str>, show_all: bool, verbose: u8) -> Result<()> {
                 // Split PATH for readability
                 let paths: Vec<&str> = v.split(':').collect();
                 println!("  PATH ({} entries):", paths.len());
-                const MAX_PATH_ENTRIES: usize = CAP_WARNINGS;
-                for p in paths.iter().take(MAX_PATH_ENTRIES) {
+                let max_path_entries = caps().warnings;
+                for p in paths.iter().take(max_path_entries) {
                     println!("    {}", p);
                 }
-                if paths.len() > MAX_PATH_ENTRIES {
-                    println!("    ... +{} more", paths.len() - MAX_PATH_ENTRIES);
+                if paths.len() > max_path_entries {
+                    println!("    ... +{} more", paths.len() - max_path_entries);
                 }
             } else {
                 println!("  {}={}", k, v);
@@ -107,13 +107,13 @@ pub fn run(filter: Option<&str>, show_all: bool, verbose: u8) -> Result<()> {
     }
 
     if !other_vars.is_empty() {
-        const MAX_OTHER_VARS: usize = CAP_LIST;
+        let max_other_vars = caps().list;
         println!("\nOther:");
-        for (k, v) in other_vars.iter().take(MAX_OTHER_VARS) {
+        for (k, v) in other_vars.iter().take(max_other_vars) {
             println!("  {}={}", k, v);
         }
-        if other_vars.len() > MAX_OTHER_VARS {
-            println!("  ... +{} more", other_vars.len() - MAX_OTHER_VARS);
+        if other_vars.len() > max_other_vars {
+            println!("  ... +{} more", other_vars.len() - max_other_vars);
         }
     }
 

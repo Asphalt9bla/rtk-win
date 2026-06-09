@@ -3,7 +3,7 @@
 use crate::core::config;
 use crate::core::runner;
 use crate::core::stream::exec_capture;
-use crate::core::truncate::CAP_WARNINGS;
+use crate::core::truncate::caps;
 use crate::core::utils::{resolved_command, truncate};
 use anyhow::Result;
 use serde::Deserialize;
@@ -325,9 +325,9 @@ pub(crate) fn filter_golangci_json(output: &str, version: u32) -> String {
     }
 
     // Show top files
-    const MAX_GOLANGCI_FILES: usize = CAP_WARNINGS;
+    let max_golangci_files = caps().warnings;
     result.push_str("Top files:\n");
-    for (file, count) in file_counts.iter().take(MAX_GOLANGCI_FILES) {
+    for (file, count) in file_counts.iter().take(max_golangci_files) {
         let short_path = compact_path(file);
         result.push_str(&format!("  {} ({} issues)\n", short_path, count));
 
@@ -362,10 +362,10 @@ pub(crate) fn filter_golangci_json(output: &str, version: u32) -> String {
         }
     }
 
-    if file_counts.len() > MAX_GOLANGCI_FILES {
+    if file_counts.len() > max_golangci_files {
         result.push_str(&format!(
             "\n... +{} more files\n",
-            file_counts.len() - MAX_GOLANGCI_FILES
+            file_counts.len() - max_golangci_files
         ));
     }
 

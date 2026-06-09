@@ -12,7 +12,7 @@
 
 use super::git;
 use crate::core::runner::{self, RunOptions};
-use crate::core::truncate::{CAP_LIST, CAP_WARNINGS};
+use crate::core::truncate::caps;
 use crate::core::utils::{ok_confirmation, resolved_command, truncate};
 use anyhow::Result;
 use lazy_static::lazy_static;
@@ -326,14 +326,14 @@ fn format_mr_list(json: &Value, ultra_compact: bool) -> String {
             format!("  {} !{} {} ({})", icon, iid, truncate(title, 60), author)
         })
         .collect();
-    const MAX_LIST: usize = CAP_LIST;
-    for line in all_lines.iter().take(MAX_LIST) {
+    let max_list = caps().list;
+    for line in all_lines.iter().take(max_list) {
         filtered.push_str(&format!("{}\n", line));
     }
-    if all_lines.len() > MAX_LIST {
-        filtered.push_str(&format!("  … +{} more\n", all_lines.len() - MAX_LIST));
+    if all_lines.len() > max_list {
+        filtered.push_str(&format!("  … +{} more\n", all_lines.len() - max_list));
         let all_text = all_lines.join("\n");
-        if let Some(hint) = crate::core::tee::force_tee_tail_hint(&all_text, "glab-mrs", MAX_LIST + 1) {
+        if let Some(hint) = crate::core::tee::force_tee_tail_hint(&all_text, "glab-mrs", max_list + 1) {
             filtered.push_str(&format!("  {}\n", hint));
         }
     }
@@ -559,14 +559,14 @@ fn format_issue_list(json: &Value, ultra_compact: bool) -> String {
             format!("  {} #{} {}", icon, iid, truncate(title, 60))
         })
         .collect();
-    const MAX_LIST: usize = CAP_LIST;
-    for line in all_lines.iter().take(MAX_LIST) {
+    let max_list = caps().list;
+    for line in all_lines.iter().take(max_list) {
         filtered.push_str(&format!("{}\n", line));
     }
-    if all_lines.len() > MAX_LIST {
-        filtered.push_str(&format!("  … +{} more\n", all_lines.len() - MAX_LIST));
+    if all_lines.len() > max_list {
+        filtered.push_str(&format!("  … +{} more\n", all_lines.len() - max_list));
         let all_text = all_lines.join("\n");
-        if let Some(hint) = crate::core::tee::force_tee_tail_hint(&all_text, "glab-issues", MAX_LIST + 1) {
+        if let Some(hint) = crate::core::tee::force_tee_tail_hint(&all_text, "glab-issues", max_list + 1) {
             filtered.push_str(&format!("  {}\n", hint));
         }
     }
@@ -686,15 +686,15 @@ fn format_ci_list(json: &Value, ultra_compact: bool) -> String {
             format!("  {} #{} {} ({})", icon, id, status, ref_name)
         })
         .collect();
-    const MAX_CI_LIST: usize = CAP_WARNINGS;
-    for line in all_lines.iter().take(MAX_CI_LIST) {
+    let max_ci_list = caps().warnings;
+    for line in all_lines.iter().take(max_ci_list) {
         filtered.push_str(&format!("{}\n", line));
     }
-    if all_lines.len() > MAX_CI_LIST {
-        filtered.push_str(&format!("  … +{} more\n", all_lines.len() - MAX_CI_LIST));
+    if all_lines.len() > max_ci_list {
+        filtered.push_str(&format!("  … +{} more\n", all_lines.len() - max_ci_list));
         let all_text = all_lines.join("\n");
         if let Some(hint) =
-            crate::core::tee::force_tee_tail_hint(&all_text, "glab-pipelines", MAX_CI_LIST + 1)
+            crate::core::tee::force_tee_tail_hint(&all_text, "glab-pipelines", max_ci_list + 1)
         {
             filtered.push_str(&format!("  {}\n", hint));
         }

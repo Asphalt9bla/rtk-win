@@ -3,7 +3,7 @@
 use crate::core::runner::{self, RunOptions};
 use crate::core::stream::exec_capture;
 use crate::core::tracking;
-use crate::core::truncate::{CAP_INVENTORY, CAP_LIST, CAP_WARNINGS};
+use crate::core::truncate::caps;
 use crate::core::utils::resolved_command;
 use anyhow::{Context, Result};
 use serde_json::Value;
@@ -84,7 +84,7 @@ fn docker_ps(_verbose: u8) -> Result<i32> {
         return Ok(0);
     }
 
-    const MAX_CONTAINERS: usize = CAP_LIST;
+    let max_containers = caps().list;
     let lines: Vec<String> = stdout
         .lines()
         .filter(|l| !l.trim().is_empty())
@@ -92,11 +92,11 @@ fn docker_ps(_verbose: u8) -> Result<i32> {
         .collect();
 
     rtk.push_str(&format!("[docker] {} containers:\n", lines.len()));
-    for entry in lines.iter().take(MAX_CONTAINERS) {
+    for entry in lines.iter().take(max_containers) {
         rtk.push_str(entry);
     }
-    if lines.len() > MAX_CONTAINERS {
-        rtk.push_str(&format!("  … +{} more\n", lines.len() - MAX_CONTAINERS));
+    if lines.len() > max_containers {
+        rtk.push_str(&format!("  … +{} more\n", lines.len() - max_containers));
         let full: String = lines.concat();
         if let Some(hint) = crate::core::tee::force_tee_hint(&full, "docker-ps") {
             rtk.push_str(&format!("{}\n", hint));
@@ -273,7 +273,7 @@ fn docker_images(_verbose: u8) -> Result<i32> {
     ));
 
     // a full image list is an inventory query, like pip list.
-    const MAX_IMAGES: usize = CAP_INVENTORY;
+    let max_images = caps().inventory;
     let image_lines: Vec<String> = lines
         .iter()
         .map(|line| {
@@ -289,12 +289,12 @@ fn docker_images(_verbose: u8) -> Result<i32> {
         full_rtk.push_str(l);
     }
 
-    for l in image_lines.iter().take(MAX_IMAGES) {
+    for l in image_lines.iter().take(max_images) {
         rtk.push_str(l);
     }
-    if image_lines.len() > MAX_IMAGES {
-        rtk.push_str(&format!("  … +{} more\n", image_lines.len() - MAX_IMAGES));
-        if let Some(hint) = crate::core::tee::force_tee_tail_hint(&full_rtk, "docker-images", MAX_IMAGES + 2) {
+    if image_lines.len() > max_images {
+        rtk.push_str(&format!("  … +{} more\n", image_lines.len() - max_images));
+        if let Some(hint) = crate::core::tee::force_tee_tail_hint(&full_rtk, "docker-images", max_images + 2) {
             rtk.push_str(&format!("{}\n", hint));
         }
     }
@@ -398,16 +398,16 @@ fn format_kubectl_pods(json: &Value) -> String {
 
     let mut out = format!("{} pods: {}\n", pods.len(), parts.join(", "));
     if !issues.is_empty() {
-        const MAX_PODS_ISSUES: usize = CAP_WARNINGS;
+        let max_pods_issues = caps().warnings;
         out.push_str("[warn] Issues:\n");
-        for issue in issues.iter().take(MAX_PODS_ISSUES) {
+        for issue in issues.iter().take(max_pods_issues) {
             out.push_str(&format!("  {}\n", issue));
         }
-        if issues.len() > MAX_PODS_ISSUES {
-            out.push_str(&format!("  … +{} more", issues.len() - MAX_PODS_ISSUES));
+        if issues.len() > max_pods_issues {
+            out.push_str(&format!("  … +{} more", issues.len() - max_pods_issues));
             let all_issues = issues.join("\n");
             if let Some(hint) =
-                crate::core::tee::force_tee_tail_hint(&all_issues, "kubectl-pods", MAX_PODS_ISSUES + 1)
+                crate::core::tee::force_tee_tail_hint(&all_issues, "kubectl-pods", max_pods_issues + 1)
             {
                 out.push_str(&format!(" {}", hint));
             }
@@ -460,15 +460,15 @@ fn format_kubectl_services(json: &Value) -> String {
         })
         .collect();
 
-    const MAX_KUBECTL_SERVICES: usize = CAP_LIST;
-    for line in all_lines.iter().take(MAX_KUBECTL_SERVICES) {
+    let max_kubectl_services = caps().list;
+    for line in all_lines.iter().take(max_kubectl_services) {
         out.push_str(&format!("{}\n", line));
     }
-    if all_lines.len() > MAX_KUBECTL_SERVICES {
-        out.push_str(&format!("  … +{} more", all_lines.len() - MAX_KUBECTL_SERVICES));
+    if all_lines.len() > max_kubectl_services {
+        out.push_str(&format!("  … +{} more", all_lines.len() - max_kubectl_services));
         let all_text = all_lines.join("\n");
         if let Some(hint) =
-            crate::core::tee::force_tee_tail_hint(&all_text, "kubectl-services", MAX_KUBECTL_SERVICES + 1)
+            crate::core::tee::force_tee_tail_hint(&all_text, "kubectl-services", max_kubectl_services + 1)
         {
             out.push_str(&format!(" {}", hint));
         }
@@ -510,7 +510,7 @@ fn kubectl_logs(args: &[String], _verbose: u8) -> Result<i32> {
 /// Expects tab-separated lines: Name\tImage\tStatus\tPorts
 /// (no header row — `--format` output is headerless)
 pub fn format_compose_ps(raw: &str) -> String {
-    const MAX_COMPOSE_SERVICES: usize = CAP_LIST;
+    let max_compose_services = caps().list;
     let lines: Vec<&str> = raw.lines().filter(|l| !l.trim().is_empty()).collect();
 
     if lines.is_empty() {
@@ -546,14 +546,14 @@ pub fn format_compose_ps(raw: &str) -> String {
         })
         .collect();
 
-    for line in all_formatted.iter().take(MAX_COMPOSE_SERVICES) {
+    for line in all_formatted.iter().take(max_compose_services) {
         result.push_str(line);
         result.push('\n');
     }
-    if all_formatted.len() > MAX_COMPOSE_SERVICES {
-        result.push_str(&format!("  … +{} more\n", all_formatted.len() - MAX_COMPOSE_SERVICES));
+    if all_formatted.len() > max_compose_services {
+        result.push_str(&format!("  … +{} more\n", all_formatted.len() - max_compose_services));
         let all_text = all_formatted.join("\n");
-        if let Some(hint) = crate::core::tee::force_tee_tail_hint(&all_text, "compose-ps", MAX_COMPOSE_SERVICES + 1) {
+        if let Some(hint) = crate::core::tee::force_tee_tail_hint(&all_text, "compose-ps", max_compose_services + 1) {
             result.push_str(&format!("  {}\n", hint));
         }
     }

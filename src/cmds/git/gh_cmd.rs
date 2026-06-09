@@ -4,7 +4,7 @@
 //! Focuses on extracting essential information from JSON outputs.
 
 use crate::core::runner::{self, RunOptions};
-use crate::core::truncate::CAP_LIST;
+use crate::core::truncate::caps;
 use crate::core::utils::{ok_confirmation, resolved_command, truncate};
 use crate::git;
 use anyhow::Result;
@@ -271,14 +271,14 @@ fn format_pr_list(json: &Value, ultra_compact: bool) -> String {
             format!("  {} #{} {} ({})", icon, number, truncate(title, 60), author)
         })
         .collect();
-    const MAX_LIST: usize = CAP_LIST;
-    for line in all_lines.iter().take(MAX_LIST) {
+    let max_list = caps().list;
+    for line in all_lines.iter().take(max_list) {
         out.push_str(&format!("{}\n", line));
     }
-    if all_lines.len() > MAX_LIST {
-        out.push_str(&format!("  … +{} more\n", all_lines.len() - MAX_LIST));
+    if all_lines.len() > max_list {
+        out.push_str(&format!("  … +{} more\n", all_lines.len() - max_list));
         let all_text = all_lines.join("\n");
-        if let Some(hint) = crate::core::tee::force_tee_tail_hint(&all_text, "gh-prs", MAX_LIST + 1) {
+        if let Some(hint) = crate::core::tee::force_tee_tail_hint(&all_text, "gh-prs", max_list + 1) {
             out.push_str(&format!("  {}\n", hint));
         }
     }
@@ -630,14 +630,14 @@ fn format_issue_list(json: &Value, ultra_compact: bool) -> String {
             format!("  {} #{} {}", icon, number, truncate(title, 60))
         })
         .collect();
-    const MAX_LIST: usize = CAP_LIST;
-    for line in all_lines.iter().take(MAX_LIST) {
+    let max_list = caps().list;
+    for line in all_lines.iter().take(max_list) {
         out.push_str(&format!("{}\n", line));
     }
-    if all_lines.len() > MAX_LIST {
-        out.push_str(&format!("  … +{} more\n", all_lines.len() - MAX_LIST));
+    if all_lines.len() > max_list {
+        out.push_str(&format!("  … +{} more\n", all_lines.len() - max_list));
         let all_text = all_lines.join("\n");
-        if let Some(hint) = crate::core::tee::force_tee_tail_hint(&all_text, "gh-issues", MAX_LIST + 1) {
+        if let Some(hint) = crate::core::tee::force_tee_tail_hint(&all_text, "gh-issues", max_list + 1) {
             out.push_str(&format!("  {}\n", hint));
         }
     }

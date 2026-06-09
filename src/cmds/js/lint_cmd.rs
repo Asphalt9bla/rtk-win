@@ -3,7 +3,7 @@
 use crate::core::config;
 use crate::core::stream::exec_capture;
 use crate::core::tracking;
-use crate::core::truncate::{CAP_ERRORS, CAP_WARNINGS};
+use crate::core::truncate::caps;
 use crate::core::utils::{package_manager_exec, resolved_command, truncate};
 use crate::mypy_cmd;
 use crate::ruff_cmd;
@@ -283,9 +283,9 @@ fn filter_eslint_json(output: &str) -> String {
     }
 
     // Show top files with most issues, plus the top rules in each
-    const MAX_FILES: usize = CAP_WARNINGS;
+    let max_files = caps().warnings;
     result.push_str("Top files:\n");
-    for (file_result, count) in by_file.iter().take(MAX_FILES) {
+    for (file_result, count) in by_file.iter().take(max_files) {
         let short_path = compact_path(&file_result.file_path);
         result.push_str(&format!("  {} ({} issues)\n", short_path, count));
 
@@ -302,15 +302,15 @@ fn filter_eslint_json(output: &str) -> String {
         }
     }
 
-    if by_file.len() > MAX_FILES {
-        result.push_str(&format!("\n… +{} more files\n", by_file.len() - MAX_FILES));
+    if by_file.len() > max_files {
+        result.push_str(&format!("\n… +{} more files\n", by_file.len() - max_files));
         let all_file_lines = by_file
             .iter()
             .map(|(r, count)| format!("{} ({} issues)", compact_path(&r.file_path), count))
             .collect::<Vec<_>>()
             .join("\n");
         if let Some(hint) =
-            crate::core::tee::force_tee_tail_hint(&all_file_lines, "eslint-files", MAX_FILES + 1)
+            crate::core::tee::force_tee_tail_hint(&all_file_lines, "eslint-files", max_files + 1)
         {
             result.push_str(&format!("  {}\n", hint));
         }
@@ -409,9 +409,9 @@ fn filter_pylint_json(output: &str) -> String {
     }
 
     // Show top files
-    const MAX_FILES: usize = CAP_WARNINGS;
+    let max_files = caps().warnings;
     result.push_str("Top files:\n");
-    for (file, count) in file_counts.iter().take(MAX_FILES) {
+    for (file, count) in file_counts.iter().take(max_files) {
         let short_path = compact_path(file);
         result.push_str(&format!("  {} ({} issues)\n", short_path, count));
 
@@ -430,15 +430,15 @@ fn filter_pylint_json(output: &str) -> String {
         }
     }
 
-    if file_counts.len() > MAX_FILES {
-        result.push_str(&format!("\n… +{} more files\n", file_counts.len() - MAX_FILES));
+    if file_counts.len() > max_files {
+        result.push_str(&format!("\n… +{} more files\n", file_counts.len() - max_files));
         let all_file_lines = file_counts
             .iter()
             .map(|(file, count)| format!("{} ({} issues)", compact_path(file), count))
             .collect::<Vec<_>>()
             .join("\n");
         if let Some(hint) =
-            crate::core::tee::force_tee_tail_hint(&all_file_lines, "pylint-files", MAX_FILES + 1)
+            crate::core::tee::force_tee_tail_hint(&all_file_lines, "pylint-files", max_files + 1)
         {
             result.push_str(&format!("  {}\n", hint));
         }
@@ -473,16 +473,16 @@ fn filter_generic_lint(output: &str) -> String {
     result.push_str(&format!("Lint: {} errors, {} warnings\n", errors, warnings));
     result.push_str("═══════════════════════════════════════\n");
 
-    const MAX_ISSUES: usize = CAP_ERRORS;
-    for issue in issues.iter().take(MAX_ISSUES) {
+    let max_issues = caps().errors;
+    for issue in issues.iter().take(max_issues) {
         result.push_str(&format!("{}\n", truncate(issue, 100)));
     }
 
-    if issues.len() > MAX_ISSUES {
-        result.push_str(&format!("\n… +{} more issues\n", issues.len() - MAX_ISSUES));
+    if issues.len() > max_issues {
+        result.push_str(&format!("\n… +{} more issues\n", issues.len() - max_issues));
         let all_issues = issues.join("\n");
         if let Some(hint) =
-            crate::core::tee::force_tee_tail_hint(&all_issues, "lint-issues", MAX_ISSUES + 1)
+            crate::core::tee::force_tee_tail_hint(&all_issues, "lint-issues", max_issues + 1)
         {
             result.push_str(&format!("  {}\n", hint));
         }

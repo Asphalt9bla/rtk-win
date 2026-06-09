@@ -1,7 +1,7 @@
 //! Filters Prettier output to show only files that need formatting.
 
 use crate::core::runner::{self, RunOptions};
-use crate::core::truncate::CAP_WARNINGS;
+use crate::core::truncate::caps;
 use crate::core::utils::package_manager_exec;
 use anyhow::Result;
 
@@ -96,15 +96,15 @@ pub fn filter_prettier_output(output: &str) -> String {
             ));
             result.push_str("═══════════════════════════════════════\n");
 
-            const MAX_PRETTIER_FILES: usize = CAP_WARNINGS;
-            for (i, file) in files_to_format.iter().take(MAX_PRETTIER_FILES).enumerate() {
+            let max_prettier_files = caps().warnings;
+            for (i, file) in files_to_format.iter().take(max_prettier_files).enumerate() {
                 result.push_str(&format!("{}. {}\n", i + 1, file));
             }
 
-            if files_to_format.len() > MAX_PRETTIER_FILES {
+            if files_to_format.len() > max_prettier_files {
                 result.push_str(&format!(
                     "\n... +{} more files\n",
-                    files_to_format.len() - MAX_PRETTIER_FILES
+                    files_to_format.len() - max_prettier_files
                 ));
             }
 

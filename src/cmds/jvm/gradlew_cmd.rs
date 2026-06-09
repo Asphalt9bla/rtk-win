@@ -1,6 +1,6 @@
 use crate::core::runner::{self, RunOptions};
 use crate::core::stream::StreamFilter;
-use crate::core::truncate::CAP_LIST;
+use crate::core::truncate::caps;
 use crate::core::utils::resolved_command;
 use anyhow::Result;
 use lazy_static::lazy_static;
@@ -508,16 +508,16 @@ fn filter_dependencies(output: &str) -> String {
         configs.len()
     );
 
-    const MAX_GRADLE_DEPS: usize = CAP_LIST;
+    let max_gradle_deps = caps().list;
     for (config, deps) in &configs {
         result.push_str(&format!("\n{} ({}):\n", config, deps.len()));
-        for dep in deps.iter().take(MAX_GRADLE_DEPS) {
+        for dep in deps.iter().take(max_gradle_deps) {
             result.push_str(&format!("  {}\n", dep));
         }
-        if deps.len() > MAX_GRADLE_DEPS {
+        if deps.len() > max_gradle_deps {
             result.push_str(&format!(
                 "  ... +{} more\n",
-                deps.len() - MAX_GRADLE_DEPS
+                deps.len() - max_gradle_deps
             ));
         }
     }
