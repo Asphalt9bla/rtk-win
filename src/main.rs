@@ -1276,6 +1276,7 @@ fn run_fallback(parse_error: clap::Error) -> Result<i32> {
                 decorative: true,
                 dedup: true,
             },
+            raw_stderr: true,
             ..Default::default()
         };
         match core::runner::run_streamed(

@@ -259,6 +259,10 @@ pub fn run_streaming(
     cmd: &mut Command,
     stdin_mode: StdinMode,
     stdout_mode: FilterMode<'_>,
+    // When true (streaming mode only), stderr lines bypass the stdout filter and
+    // are written through raw — so a stateful filter can't misroute them across
+    // fds. Default false keeps the existing filter-both-fds behavior.
+    stderr_passthrough: bool,
 ) -> Result<StreamResult> {
     if matches!(stdout_mode, FilterMode::Passthrough) {
         match &stdin_mode {
@@ -395,6 +399,14 @@ pub fn run_streaming(
                         capped_out = true;
                         eprintln!("[rtk] warning: stdout exceeds 10 MiB — filter input truncated");
                     }
+                }
+                if is_stderr && stderr_passthrough {
+                    match writeln!(err_out, "{}", line) {
+                        Err(e) if e.kind() == io::ErrorKind::BrokenPipe => break,
+                        Err(e) => return Err(e.into()),
+                        Ok(_) => {}
+                    }
+                    continue;
                 }
                 filter_fd_is_stderr = is_stderr;
                 if let Some(output) = filter.feed_line(&line) {
@@ -663,7 +675,8 @@ pub(crate) mod tests {
     fn test_run_streaming_passthrough_echo() {
         let mut cmd = Command::new("echo");
         cmd.arg("hello");
-        let result = run_streaming(&mut cmd, StdinMode::Null, FilterMode::Passthrough).unwrap();
+        let result =
+            run_streaming(&mut cmd, StdinMode::Null, FilterMode::Passthrough, false).unwrap();
         assert_eq!(result.exit_code, 0);
         // Passthrough inherits TTY — raw/filtered are empty
         assert!(result.raw.is_empty());
@@ -674,14 +687,16 @@ pub(crate) mod tests {
         // nosemgrep: interpreter-execution
         let mut cmd = Command::new("sh");
         cmd.args(["-c", "exit 42"]);
-        let result = run_streaming(&mut cmd, StdinMode::Null, FilterMode::Passthrough).unwrap();
+        let result =
+            run_streaming(&mut cmd, StdinMode::Null, FilterMode::Passthrough, false).unwrap();
         assert_eq!(result.exit_code, 42);
     }
 
     #[test]
     fn test_run_streaming_exit_code_zero() {
         let mut cmd = Command::new("true");
-        let result = run_streaming(&mut cmd, StdinMode::Null, FilterMode::Passthrough).unwrap();
+        let result =
+            run_streaming(&mut cmd, StdinMode::Null, FilterMode::Passthrough, false).unwrap();
         assert_eq!(result.exit_code, 0);
         assert!(result.success());
     }
@@ -689,7 +704,8 @@ pub(crate) mod tests {
     #[test]
     fn test_run_streaming_exit_code_one() {
         let mut cmd = Command::new("false");
-        let result = run_streaming(&mut cmd, StdinMode::Null, FilterMode::Passthrough).unwrap();
+        let result =
+            run_streaming(&mut cmd, StdinMode::Null, FilterMode::Passthrough, false).unwrap();
         assert_eq!(result.exit_code, 1);
         assert!(!result.success());
     }
@@ -710,6 +726,7 @@ pub(crate) mod tests {
             &mut cmd,
             StdinMode::Null,
             FilterMode::Streaming(Box::new(filter)),
+            false,
         )
         .unwrap();
         assert!(result.filtered.contains('a'));
@@ -727,6 +744,7 @@ pub(crate) mod tests {
             &mut cmd,
             StdinMode::Null,
             FilterMode::Buffered(Box::new(|s: &str| s.to_uppercase())),
+            false,
         )
         .unwrap();
         assert!(result.filtered.contains("LINE1"));
@@ -743,7 +761,8 @@ pub(crate) mod tests {
             "-c",
             "dd if=/dev/zero bs=1024 count=11264 2>/dev/null | tr '\\0' 'a' | fold -w 80",
         ]);
-        let result = run_streaming(&mut cmd, StdinMode::Null, FilterMode::CaptureOnly).unwrap();
+        let result =
+            run_streaming(&mut cmd, StdinMode::Null, FilterMode::CaptureOnly, false).unwrap();
         assert!(
             result.raw.len() <= 10_485_760 + 100,
             "raw should be capped at ~10 MiB, got {} bytes",
@@ -764,7 +783,8 @@ pub(crate) mod tests {
             "-c",
             "dd if=/dev/zero bs=1024 count=11264 2>/dev/null | tr '\\0' 'a' | fold -w 80 1>&2",
         ]);
-        let result = run_streaming(&mut cmd, StdinMode::Null, FilterMode::CaptureOnly).unwrap();
+        let result =
+            run_streaming(&mut cmd, StdinMode::Null, FilterMode::CaptureOnly, false).unwrap();
         // raw = raw_stdout + raw_stderr; stdout is empty so raw ≈ stderr size
         assert!(
             result.raw.len() <= RAW_CAP + 200,
@@ -776,7 +796,7 @@ pub(crate) mod tests {
     #[test]
     fn test_child_guard_prevents_zombie() {
         let mut cmd = Command::new("true");
-        let result = run_streaming(&mut cmd, StdinMode::Null, FilterMode::CaptureOnly);
+        let result = run_streaming(&mut cmd, StdinMode::Null, FilterMode::CaptureOnly, false);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().exit_code, 0);
     }
@@ -784,7 +804,8 @@ pub(crate) mod tests {
     #[test]
     fn test_run_streaming_null_stdin_cat() {
         let mut cmd = Command::new("cat");
-        let result = run_streaming(&mut cmd, StdinMode::Null, FilterMode::Passthrough).unwrap();
+        let result =
+            run_streaming(&mut cmd, StdinMode::Null, FilterMode::Passthrough, false).unwrap();
         assert_eq!(result.exit_code, 0);
     }
 
@@ -792,7 +813,8 @@ pub(crate) mod tests {
     fn test_run_streaming_raw_contains_stdout() {
         let mut cmd = Command::new("echo");
         cmd.arg("test_output_xyz");
-        let result = run_streaming(&mut cmd, StdinMode::Null, FilterMode::CaptureOnly).unwrap();
+        let result =
+            run_streaming(&mut cmd, StdinMode::Null, FilterMode::CaptureOnly, false).unwrap();
         assert!(result.raw.contains("test_output_xyz"));
     }
 
@@ -800,7 +822,8 @@ pub(crate) mod tests {
     fn test_run_streaming_capture_only_filtered_equals_raw() {
         let mut cmd = Command::new("echo");
         cmd.arg("check_equality");
-        let result = run_streaming(&mut cmd, StdinMode::Null, FilterMode::CaptureOnly).unwrap();
+        let result =
+            run_streaming(&mut cmd, StdinMode::Null, FilterMode::CaptureOnly, false).unwrap();
         assert_eq!(result.filtered.trim(), result.raw_stdout.trim());
     }
 
@@ -1008,6 +1031,7 @@ pub(crate) mod tests {
             &mut cmd,
             StdinMode::Null,
             FilterMode::Streaming(Box::new(filter)),
+            false,
         )
         .unwrap();
 

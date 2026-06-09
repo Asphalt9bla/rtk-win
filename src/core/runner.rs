@@ -27,6 +27,9 @@ pub struct RunOptions<'a> {
     pub inherit_stdin: bool,
     /// Generic layers applied before the command's own filter. Default = all on.
     pub layers: Layers,
+    /// Stream stderr through raw (unfiltered) instead of the pipeline. Used by the
+    /// global fallback so a stateful layer can't misroute stderr across fds.
+    pub raw_stderr: bool,
 }
 
 impl<'a> RunOptions<'a> {
@@ -91,7 +94,7 @@ where
     } else {
         StdinMode::Null
     };
-    let result = stream::run_streaming(&mut cmd, stdin_mode, FilterMode::CaptureOnly)
+    let result = stream::run_streaming(&mut cmd, stdin_mode, FilterMode::CaptureOnly, false)
         .with_context(|| format!("Failed to run {}", tool_name))?;
 
     let exit_code = result.exit_code;
@@ -173,8 +176,13 @@ pub fn run(
             } else {
                 StdinMode::Null
             };
-            let result = stream::run_streaming(&mut cmd, stdin_mode, FilterMode::Streaming(filter))
-                .with_context(|| format!("Failed to run {}", tool_name))?;
+            let result = stream::run_streaming(
+                &mut cmd,
+                stdin_mode,
+                FilterMode::Streaming(filter),
+                opts.raw_stderr,
+            )
+            .with_context(|| format!("Failed to run {}", tool_name))?;
 
             if let Some(label) = opts.tee_label {
                 if let Some(hint) =
@@ -194,7 +202,7 @@ pub fn run(
         }
         RunMode::Passthrough => {
             let result =
-                stream::run_streaming(&mut cmd, StdinMode::Inherit, FilterMode::Passthrough)
+                stream::run_streaming(&mut cmd, StdinMode::Inherit, FilterMode::Passthrough, false)
                     .with_context(|| format!("Failed to run {}", tool_name))?;
 
             timer.track_passthrough(&cmd_label, &format!("rtk {} (passthrough)", cmd_label));

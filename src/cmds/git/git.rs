@@ -1134,6 +1134,7 @@ fn run_push(args: &[String], verbose: u8, global_args: &[String]) -> Result<i32>
         &mut cmd,
         StdinMode::Inherit,
         FilterMode::Streaming(Box::new(filter)),
+        false,
     )
     .context("Failed to run git push")?;
 
