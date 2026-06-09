@@ -52,6 +52,7 @@ exclude_commands = []       # commands to never auto-rewrite
 
 [levels]
 decorative = "reasonable"   # chrome removal aggressivity: "light" | "reasonable" | "high"
+dedup = "exact"             # collapse repeated lines (fallback): "exact" | "normalized"
 exclude = []                # extra commands to leave unfiltered (raw passthrough)
 ```
 
@@ -62,7 +63,8 @@ For full details on what is collected, opt-out options, and GDPR rights, see [Te
 | Variable | Description |
 |----------|-------------|
 | `RTK_DISABLED=1` | Disable RTK for a single command (`RTK_DISABLED=1 git status`) |
-| `RTK_DECORATIVE` | Decorative level for this invocation (`light`/`reasonable`/`high`) |
+| `RTK_DECORATIVE_LEVEL` | Decorative level for this invocation (`light`/`reasonable`/`high`) |
+| `RTK_DEDUP_LEVEL` | Dedup level for the fallback (`exact`/`normalized`) |
 | `RTK_TEE_DIR` | Override the tee directory |
 | `RTK_TELEMETRY_DISABLED=1` | Disable telemetry |
 | `RTK_HOOK_AUDIT=1` | Enable hook audit logging |
@@ -90,7 +92,21 @@ exclude = ["mytool"]
 Override for a single invocation:
 
 ```bash
-RTK_DECORATIVE=high rtk <command>
+RTK_DECORATIVE_LEVEL=high rtk <command>
+```
+
+### Dedup (unsupported commands)
+
+For commands RTK doesn't have a specific filter for, it also collapses consecutive
+repeated lines into `[×N] line` — useful for noisy logs, retries, and repeated warnings.
+
+| `dedup` | Behavior |
+|---------|----------|
+| `exact` (default) | collapse byte-identical consecutive lines |
+| `normalized` | mask volatile tokens (numbers, hex, timestamps) first, then collapse near-identical lines |
+
+```bash
+RTK_DEDUP_LEVEL=normalized rtk <command>
 ```
 
 ### Excluding commands from the pipeline

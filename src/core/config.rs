@@ -156,11 +156,18 @@ fn default_decorative() -> String {
     "reasonable".to_string()
 }
 
+fn default_dedup() -> String {
+    "exact".to_string()
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LevelsConfig {
     /// `light` | `reasonable` | `high`
     #[serde(default = "default_decorative")]
     pub decorative: String,
+    /// `exact` | `normalized`
+    #[serde(default = "default_dedup")]
+    pub dedup: String,
     /// Extra commands excluded from the global fallback pipeline (raw passthrough).
     #[serde(default)]
     pub exclude: Vec<String>,
@@ -170,6 +177,7 @@ impl Default for LevelsConfig {
     fn default() -> Self {
         Self {
             decorative: default_decorative(),
+            dedup: default_dedup(),
             exclude: Vec::new(),
         }
     }

@@ -2,10 +2,12 @@
 //! env/config.
 
 use super::decorative::DecorativeLevel;
+use super::dedup::DedupLevel;
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Levels {
     pub decorative: DecorativeLevel,
+    pub dedup: DedupLevel,
 }
 
 // Raw-output commands: their content must stay byte-exact, so the global
@@ -27,7 +29,7 @@ fn resolved() -> &'static Resolved {
 
 fn resolve() -> Resolved {
     let config = crate::core::config::Config::load().ok();
-    let decorative = std::env::var("RTK_DECORATIVE")
+    let decorative = std::env::var("RTK_DECORATIVE_LEVEL")
         .ok()
         .and_then(|v| DecorativeLevel::parse(&v))
         .or_else(|| {
@@ -37,13 +39,23 @@ fn resolve() -> Resolved {
         })
         .unwrap_or_default();
 
+    let dedup = std::env::var("RTK_DEDUP_LEVEL")
+        .ok()
+        .and_then(|v| DedupLevel::parse(&v))
+        .or_else(|| {
+            config
+                .as_ref()
+                .and_then(|c| DedupLevel::parse(&c.levels.dedup))
+        })
+        .unwrap_or_default();
+
     let mut exclude: Vec<String> = BUILTIN_EXCLUDE.iter().map(|s| s.to_string()).collect();
     if let Some(c) = &config {
         exclude.extend(c.levels.exclude.iter().cloned());
     }
 
     Resolved {
-        levels: Levels { decorative },
+        levels: Levels { decorative, dedup },
         exclude,
     }
 }

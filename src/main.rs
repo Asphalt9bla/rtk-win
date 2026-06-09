@@ -1272,6 +1272,10 @@ fn run_fallback(parse_error: clap::Error) -> Result<i32> {
         let opts = core::runner::RunOptions {
             inherit_stdin: true,
             tee_label: Some(raw_command.as_str()),
+            layers: core::pipeline::Layers {
+                decorative: true,
+                dedup: true,
+            },
             ..Default::default()
         };
         match core::runner::run_streamed(
