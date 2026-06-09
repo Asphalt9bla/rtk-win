@@ -6,18 +6,22 @@ cross-cutting layers (currently: decorative chrome removal).
 
 ## Concepts
 
-- **Layer** — a generic transformation (e.g. `decorative`, `dedup`). Each layer
-  lives in its own file and may have a whole-string form (captured) and a
-  per-line form (streaming).
+- **Node layer** — a generic transformation pass run before the custom filter.
+  Each lives in its own file with a whole-string (captured) and per-line
+  (streaming) form:
   - `decorative` — chrome removal (ANSI, blank runs, box-drawing). Safe pre-custom.
   - `dedup` — collapse consecutive repeats into `[×N] line`. Default **off**: it
     must run after parsing, so today it's enabled only in the global fallback
     (no parser to corrupt).
-- **`Layers`** (`mod.rs`) — a per-command, **code-level** policy of which layers
-  run. Not user-configurable. Default = all on. A command opts a layer out with
-  `Layers { decorative: false }`.
-- **`Levels`** (`levels.rs`) — the **user-configurable** aggressivity of a layer
-  (e.g. `DecorativeLevel::{Light,Reasonable,High}`). Resolved once and cached.
+- **Dial layer** — not a pass; a global level the command's own renderer reads.
+  - `truncate` — scales the item caps (`core::truncate::caps()`): each command
+    keeps deciding *which* items to cap, but reads a level-scaled value instead of
+    the `CAP_*` const. `reasonable` = today; `high` ÷2; `light` ×2; `none` = no cap.
+- **`Layers`** (`mod.rs`) — a per-command, **code-level** policy of which node
+  layers run. Not user-configurable. A command opts out with `Layers { decorative: false }`.
+- **`Levels`** (`levels.rs`) — the **user-configurable** aggressivity per layer
+  (`DecorativeLevel`/`DedupLevel`/`TruncateLevel`), resolved once and cached. Every
+  level has a `None` variant = layer off.
 - **custom filter** — the command's own `cmds/` filter. Always the terminal step.
 
 ## Two execution modes

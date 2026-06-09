@@ -51,10 +51,13 @@ enabled = true              # anonymous daily ping — see Telemetry & Privacy f
 exclude_commands = []       # commands to never auto-rewrite
 
 [levels]
-decorative = "reasonable"   # chrome removal aggressivity: "light" | "reasonable" | "high"
-dedup = "exact"             # collapse repeated lines (fallback): "exact" | "normalized"
+decorative = "reasonable"   # chrome removal: "none" | "light" | "reasonable" | "high"
+dedup = "exact"             # collapse repeated lines (fallback): "none" | "exact" | "normalized"
+truncate = "reasonable"     # item caps "show N, +M more": "none" | "light" | "reasonable" | "high"
 exclude = []                # extra commands to leave unfiltered (raw passthrough)
 ```
+
+Every layer accepts `"none"` to turn it off. The default keeps RTK's current behavior.
 
 For full details on what is collected, opt-out options, and GDPR rights, see [Telemetry & Privacy](../resources/telemetry.md).
 
@@ -63,8 +66,9 @@ For full details on what is collected, opt-out options, and GDPR rights, see [Te
 | Variable | Description |
 |----------|-------------|
 | `RTK_DISABLED=1` | Disable RTK for a single command (`RTK_DISABLED=1 git status`) |
-| `RTK_DECORATIVE_LEVEL` | Decorative level for this invocation (`light`/`reasonable`/`high`) |
-| `RTK_DEDUP_LEVEL` | Dedup level for the fallback (`exact`/`normalized`) |
+| `RTK_DECORATIVE_LEVEL` | Decorative level for this invocation (`none`/`light`/`reasonable`/`high`) |
+| `RTK_DEDUP_LEVEL` | Dedup level for the fallback (`none`/`exact`/`normalized`) |
+| `RTK_TRUNCATE_LEVEL` | Item-cap level for this invocation (`none`/`light`/`reasonable`/`high`) |
 | `RTK_TEE_DIR` | Override the tee directory |
 | `RTK_TELEMETRY_DISABLED=1` | Disable telemetry |
 | `RTK_HOOK_AUDIT=1` | Enable hook audit logging |
@@ -85,6 +89,7 @@ exclude = ["mytool"]
 
 | `decorative` | What it removes |
 |--------------|-----------------|
+| `none` | nothing (layer off) |
 | `light` | ANSI color codes only (fully lossless) |
 | `reasonable` (default) | ANSI + trailing whitespace + collapses blank-line runs |
 | `high` | + drops pure box-drawing / separator lines |
@@ -95,6 +100,26 @@ Override for a single invocation:
 RTK_DECORATIVE_LEVEL=high rtk <command>
 ```
 
+Every layer also accepts `none` to disable it (e.g. `RTK_DECORATIVE_LEVEL=none`
+for raw output).
+
+### Truncate (item caps)
+
+Each command caps how many items it lists ("show N errors, +M more"). The
+`truncate` level scales those caps — higher = more compression (fewer items):
+
+| `truncate` | Effect on caps |
+|------------|----------------|
+| `none` | no cap (show everything) |
+| `light` | looser caps (×2 — show more) |
+| `reasonable` (default) | today's per-command caps, unchanged |
+| `high` | tighter caps (÷2 — fewer items, more compression) |
+
+```bash
+RTK_TRUNCATE_LEVEL=high rtk cargo clippy   # fewer items shown
+RTK_TRUNCATE_LEVEL=none rtk pip list       # no truncation
+```
+
 ### Dedup (unsupported commands)
 
 For commands RTK doesn't have a specific filter for, it also collapses consecutive
@@ -102,6 +127,7 @@ repeated lines into `[×N] line` — useful for noisy logs, retries, and repeate
 
 | `dedup` | Behavior |
 |---------|----------|
+| `none` | no collapse (layer off) |
 | `exact` (default) | collapse byte-identical consecutive lines |
 | `normalized` | mask volatile tokens (numbers, hex, timestamps) first, then collapse near-identical lines |
 
