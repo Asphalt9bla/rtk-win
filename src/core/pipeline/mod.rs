@@ -7,6 +7,12 @@ mod dedup;
 mod levels;
 
 pub use levels::is_excluded;
+pub use levels::TruncateLevel;
+
+/// The resolved truncate level, for `core::truncate::caps()`.
+pub fn truncate_level() -> TruncateLevel {
+    levels::current().truncate
+}
 
 use crate::core::stream::StreamFilter;
 

@@ -5,6 +5,7 @@ use crate::core::utils::strip_ansi;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum DecorativeLevel {
+    None,
     Light,
     #[default]
     Reasonable,
@@ -14,6 +15,7 @@ pub enum DecorativeLevel {
 impl DecorativeLevel {
     pub fn parse(s: &str) -> Option<Self> {
         match s.trim().to_ascii_lowercase().as_str() {
+            "none" | "off" => Some(Self::None),
             "light" | "low" => Some(Self::Light),
             "reasonable" | "normal" | "default" | "medium" | "med" => Some(Self::Reasonable),
             "high" | "aggressive" => Some(Self::High),
@@ -23,6 +25,9 @@ impl DecorativeLevel {
 }
 
 pub fn apply(input: &str, level: DecorativeLevel) -> String {
+    if level == DecorativeLevel::None {
+        return input.to_string();
+    }
     if level == DecorativeLevel::Light {
         return strip_ansi(input);
     }
@@ -102,6 +107,9 @@ pub(super) fn wrap_stream<'a>(
     inner: Box<dyn StreamFilter + 'a>,
     level: DecorativeLevel,
 ) -> Box<dyn StreamFilter + 'a> {
+    if level == DecorativeLevel::None {
+        return inner;
+    }
     Box::new(Decorating {
         inner,
         level,
@@ -143,6 +151,14 @@ mod tests {
     fn high_preserves_ascii_rules() {
         let out = apply("title\n-----\n===\nbody", DecorativeLevel::High);
         assert_eq!(out, "title\n-----\n===\nbody");
+    }
+
+    #[test]
+    fn none_is_identity() {
+        let raw = "\x1b[32mok\x1b[0m\n\n\n──────\nbye   ";
+        assert_eq!(apply(raw, DecorativeLevel::None), raw);
+        assert_eq!(DecorativeLevel::parse("none"), Some(DecorativeLevel::None));
+        assert_eq!(DecorativeLevel::parse("off"), Some(DecorativeLevel::None));
     }
 
     #[test]

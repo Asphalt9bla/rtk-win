@@ -160,14 +160,21 @@ fn default_dedup() -> String {
     "exact".to_string()
 }
 
+fn default_truncate() -> String {
+    "reasonable".to_string()
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LevelsConfig {
-    /// `light` | `reasonable` | `high`
+    /// `none` | `light` | `reasonable` | `high`
     #[serde(default = "default_decorative")]
     pub decorative: String,
-    /// `exact` | `normalized`
+    /// `none` | `exact` | `normalized`
     #[serde(default = "default_dedup")]
     pub dedup: String,
+    /// `none` | `light` | `reasonable` | `high` — scales the per-command item caps
+    #[serde(default = "default_truncate")]
+    pub truncate: String,
     /// Extra commands excluded from the global fallback pipeline (raw passthrough).
     #[serde(default)]
     pub exclude: Vec<String>,
@@ -178,6 +185,7 @@ impl Default for LevelsConfig {
         Self {
             decorative: default_decorative(),
             dedup: default_dedup(),
+            truncate: default_truncate(),
             exclude: Vec::new(),
         }
     }

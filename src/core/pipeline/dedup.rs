@@ -6,6 +6,7 @@ use regex::Regex;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum DedupLevel {
+    None,
     #[default]
     Exact,
     Normalized,
@@ -14,6 +15,7 @@ pub enum DedupLevel {
 impl DedupLevel {
     pub fn parse(s: &str) -> Option<Self> {
         match s.trim().to_ascii_lowercase().as_str() {
+            "none" | "off" => Some(Self::None),
             "exact" => Some(Self::Exact),
             "normalized" | "normalised" | "fuzzy" => Some(Self::Normalized),
             _ => None,
@@ -30,7 +32,7 @@ lazy_static! {
 // lines — timestamps, counters, ids — collapse together.
 fn key(line: &str, level: DedupLevel) -> String {
     match level {
-        DedupLevel::Exact => line.to_string(),
+        DedupLevel::None | DedupLevel::Exact => line.to_string(),
         DedupLevel::Normalized => {
             let masked = HEX_RE.replace_all(line, "0x#");
             NUM_RE.replace_all(&masked, "#").into_owned()
@@ -88,6 +90,9 @@ impl Collapser {
 }
 
 pub fn apply(input: &str, level: DedupLevel) -> String {
+    if level == DedupLevel::None {
+        return input.to_string();
+    }
     let mut collapser = Collapser::new(level);
     let mut out: Vec<String> = Vec::new();
     for line in input.lines() {
@@ -132,6 +137,9 @@ pub(super) fn wrap_stream<'a>(
     inner: Box<dyn StreamFilter + 'a>,
     level: DedupLevel,
 ) -> Box<dyn StreamFilter + 'a> {
+    if level == DedupLevel::None {
+        return inner;
+    }
     Box::new(Dedup {
         inner,
         collapser: Collapser::new(level),
@@ -164,6 +172,13 @@ mod tests {
             apply(input, DedupLevel::Normalized),
             "[×3] [12:00:01] retry 1"
         );
+    }
+
+    #[test]
+    fn none_is_identity() {
+        assert_eq!(apply("a\na\na\nb", DedupLevel::None), "a\na\na\nb");
+        assert_eq!(DedupLevel::parse("none"), Some(DedupLevel::None));
+        assert_eq!(DedupLevel::parse("off"), Some(DedupLevel::None));
     }
 
     #[test]
