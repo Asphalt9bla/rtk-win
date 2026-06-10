@@ -71,36 +71,64 @@ fn extract_pattern_path(args: &[String]) -> (Vec<String>, Vec<String>, Vec<Strin
         }
 
         if arg.starts_with('-') {
-            // -e: consume value into patterns (not flags)
-            if arg == "-e" {
-                if i + 1 < args.len() {
-                    e_patterns.push(args[i + 1].clone());
-                    i += 2;
-                } else {
-                    i += 1;
+            // Long flags (--foo, --recursive): strip or pass through unchanged
+            if arg.starts_with("--") {
+                if let Some(cleaned) = process_flag(arg) {
+                    flags.push(cleaned);
                 }
+                i += 1;
                 continue;
             }
 
-            // Exact 2-char value-taking flag: consume next token as value
-            if arg.len() == 2
-                && VALUE_FLAGS_SHORT.contains(&arg.as_bytes()[1])
-            {
-                flags.push(arg.clone());
-                if i + 1 < args.len() {
-                    flags.push(args[i + 1].clone());
-                    i += 2;
-                } else {
-                    i += 1;
-                }
+            let rest = arg.strip_prefix('-').unwrap_or(""); // bytes after the leading '-'
+            if rest.is_empty() {
+                // Bare `-`: treat as positional (stdin)
+                positionals.push(arg.clone());
+                i += 1;
                 continue;
             }
 
-            // Strip recursive flags; pass everything else through
-            if let Some(cleaned) = process_flag(arg) {
-                flags.push(cleaned);
+            let last = *rest.as_bytes().last().unwrap();
+            let last_is_e = last == b'e';
+            let last_takes_value = last_is_e || VALUE_FLAGS_SHORT.contains(&last);
+
+            if last_takes_value {
+                // Emit cleaned prefix (everything before last char, r/R stripped)
+                let prefix: String = rest[..rest.len() - 1]
+                    .chars()
+                    .filter(|&c| c != 'r' && c != 'R')
+                    .collect();
+                if !prefix.is_empty() {
+                    flags.push(format!("-{}", prefix));
+                }
+
+                let value = if i + 1 < args.len() {
+                    let v = args[i + 1].clone();
+                    i += 2;
+                    Some(v)
+                } else {
+                    i += 1;
+                    None
+                };
+
+                if last_is_e {
+                    if let Some(v) = value {
+                        e_patterns.push(v);
+                    }
+                } else {
+                    flags.push(format!("-{}", last as char));
+                    if let Some(v) = value {
+                        flags.push(v);
+                    }
+                }
+            } else {
+                // No value-taking flag at end: strip r/R, forward remainder
+                let cleaned: String = rest.chars().filter(|&c| c != 'r' && c != 'R').collect();
+                if !cleaned.is_empty() {
+                    flags.push(format!("-{}", cleaned));
+                }
+                i += 1;
             }
-            i += 1;
         } else {
             positionals.push(arg.clone());
             i += 1;
@@ -235,7 +263,12 @@ pub fn run(
         let args_display = if extra_args.is_empty() {
             format!("'{}' {}", display_pattern, path_display)
         } else {
-            format!("{} '{}' {}", extra_args.join(" "), display_pattern, path_display)
+            format!(
+                "{} '{}' {}",
+                extra_args.join(" "),
+                display_pattern,
+                path_display
+            )
         };
 
         timer.track_passthrough(
@@ -480,11 +513,17 @@ mod tests {
     fn test_process_flag_strip_r() {
         assert_eq!(process_flag("-r"), None);
         assert_eq!(process_flag("-R"), None);
-        assert_eq!(process_flag("--recursive"), None);
         assert_eq!(process_flag("-rn"), Some("-n".to_string()));
         assert_eq!(process_flag("-Rni"), Some("-ni".to_string()));
         assert_eq!(process_flag("-i"), Some("-i".to_string()));
+    }
+
+    #[test]
+    fn test_process_flag_strip_recursive() {
+        // process_flag is now only called for long flags
+        assert_eq!(process_flag("--recursive"), None);
         assert_eq!(process_flag("--glob"), Some("--glob".to_string()));
+        assert_eq!(process_flag("--type"), Some("--type".to_string()));
     }
 
     // --- extract_pattern_path ---
@@ -528,6 +567,24 @@ mod tests {
     }
 
     #[test]
+    fn test_extract_cluster_ending_in_e() {
+        // -rne PATTERN: r stripped, n in prefix, e consumes PATTERN as pattern
+        let (patterns, paths, flags) = extract_pattern_path(&s(&["-rne", "PATTERN", "src"]));
+        assert_eq!(patterns, s(&["PATTERN"]));
+        assert_eq!(paths, s(&["src"]));
+        assert_eq!(flags, s(&["-n"]));
+    }
+
+    #[test]
+    fn test_extract_cluster_ending_in_value_flag() {
+        // -rA 2: r stripped, A consumes 2 as context value
+        let (patterns, paths, flags) = extract_pattern_path(&s(&["-rA", "2", "foo", "src"]));
+        assert_eq!(patterns, s(&["foo"]));
+        assert_eq!(paths, s(&["src"]));
+        assert_eq!(flags, s(&["-A", "2"]));
+    }
+
+    #[test]
     fn test_extract_multi_path() {
         let (patterns, paths, flags) = extract_pattern_path(&s(&["TODO", "src", "tests"]));
         assert_eq!(patterns, s(&["TODO"]));
@@ -555,8 +612,7 @@ mod tests {
 
     #[test]
     fn test_extract_multi_e() {
-        let (patterns, paths, flags) =
-            extract_pattern_path(&s(&["-e", "foo", "-e", "bar", "src"]));
+        let (patterns, paths, flags) = extract_pattern_path(&s(&["-e", "foo", "-e", "bar", "src"]));
         assert_eq!(patterns, s(&["foo", "bar"]));
         assert_eq!(paths, s(&["src"]));
         assert!(flags.is_empty());
