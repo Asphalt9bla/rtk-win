@@ -45,6 +45,14 @@ impl Pipeline {
         Self { layers }
     }
 
+    // no filter enabled → native exec
+    pub fn is_noop(&self) -> bool {
+        let lv = levels::current();
+        let dec = self.layers.decorative && lv.decorative != decorative::DecorativeLevel::None;
+        let ddp = self.layers.dedup && lv.dedup != dedup::DedupLevel::None;
+        !dec && !ddp
+    }
+
     pub fn run(&self, raw: &str, custom: impl Fn(&str) -> String) -> String {
         let levels = levels::current();
         let mut data = raw.to_string();

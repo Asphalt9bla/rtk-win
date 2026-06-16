@@ -1144,6 +1144,11 @@ const RTK_META_COMMANDS: &[&str] = &[
     "rewrite",
 ];
 
+const FALLBACK_LAYERS: core::pipeline::Layers = core::pipeline::Layers {
+    decorative: true,
+    dedup: true,
+};
+
 fn run_fallback(parse_error: clap::Error) -> Result<i32> {
     let args: Vec<String> = std::env::args().skip(1).collect();
 
@@ -1243,9 +1248,10 @@ fn run_fallback(parse_error: clap::Error) -> Result<i32> {
             }
         }
     } else if core::pipeline::is_excluded(&base)
+        || core::pipeline::Pipeline::for_layers(FALLBACK_LAYERS).is_noop()
         || std::io::IsTerminal::is_terminal(&std::io::stdout())
     {
-        // Excluded (raw-output commands) or a terminal: passthrough untouched.
+        // Excluded, no filter enabled, or a terminal: passthrough untouched.
         let status = core::utils::resolved_command(&args[0])
             .args(&args[1..])
             .stdin(std::process::Stdio::inherit())
@@ -1272,10 +1278,7 @@ fn run_fallback(parse_error: clap::Error) -> Result<i32> {
         let opts = core::runner::RunOptions {
             inherit_stdin: true,
             tee_label: Some(raw_command.as_str()),
-            layers: core::pipeline::Layers {
-                decorative: true,
-                dedup: true,
-            },
+            layers: FALLBACK_LAYERS,
             raw_stderr: true,
             ..Default::default()
         };
