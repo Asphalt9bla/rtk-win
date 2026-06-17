@@ -36,7 +36,7 @@ pub struct Levels {
 }
 
 // Raw-output commands: their content must stay byte-exact, so the global
-// fallback pipeline never touches them. Users extend this via [levels].exclude.
+// fallback pipeline never touches them. Users extend this via [layers].exclude.
 const BUILTIN_EXCLUDE: &[&str] = &[
     "cat", "head", "tail", "base64", "xxd", "hexdump", "od", "strings", "dd",
 ];
@@ -60,7 +60,7 @@ fn resolve() -> Resolved {
         .or_else(|| {
             config
                 .as_ref()
-                .and_then(|c| DecorativeLevel::parse(&c.levels.decorative))
+                .and_then(|c| DecorativeLevel::parse(&c.layers.decorative))
         })
         .unwrap_or_default();
 
@@ -70,7 +70,7 @@ fn resolve() -> Resolved {
         .or_else(|| {
             config
                 .as_ref()
-                .and_then(|c| DedupLevel::parse(&c.levels.dedup))
+                .and_then(|c| DedupLevel::parse(&c.layers.dedup))
         })
         .unwrap_or_default();
 
@@ -80,13 +80,13 @@ fn resolve() -> Resolved {
         .or_else(|| {
             config
                 .as_ref()
-                .and_then(|c| TruncateLevel::parse(&c.levels.truncate))
+                .and_then(|c| TruncateLevel::parse(&c.layers.truncate))
         })
         .unwrap_or_default();
 
     let mut exclude: Vec<String> = BUILTIN_EXCLUDE.iter().map(|s| s.to_string()).collect();
     if let Some(c) = &config {
-        exclude.extend(c.levels.exclude.iter().cloned());
+        exclude.extend(c.layers.exclude.iter().cloned());
     }
 
     Resolved {

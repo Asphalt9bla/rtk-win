@@ -3,7 +3,7 @@
 use anyhow::{Context, Result};
 use std::process::Command;
 
-use crate::core::pipeline::{Layers, Pipeline};
+use crate::core::pipeline::{Pipeline, Routing};
 use crate::core::stream::{self, FilterMode, StdinMode, StreamFilter};
 use crate::core::tracking;
 
@@ -25,8 +25,8 @@ pub struct RunOptions<'a> {
     /// can read from a pipe (e.g. `cat file | rtk wc`); without it the child
     /// gets an empty stdin and reports zero.
     pub inherit_stdin: bool,
-    /// Generic layers applied before the command's own filter. Default = all on.
-    pub layers: Layers,
+    /// Which generic layers run around the command's own filter.
+    pub routing: Routing,
     /// Stream stderr through raw (unfiltered) instead of the pipeline. Used by the
     /// global fallback so a stateful layer can't misroute stderr across fds.
     pub raw_stderr: bool,
@@ -118,7 +118,7 @@ where
         raw
     };
     let filtered =
-        Pipeline::for_layers(opts.layers).run(text_to_filter, |s| filter_fn(s, exit_code));
+        Pipeline::with_routing(opts.routing).run(text_to_filter, |s| filter_fn(s, exit_code));
 
     if let Some(label) = opts.tee_label {
         print_with_hint(&filtered, raw, label, exit_code);
@@ -170,7 +170,7 @@ pub fn run(
             timer,
         ),
         RunMode::Streamed(filter) => {
-            let filter = Pipeline::for_layers(opts.layers).stream(filter);
+            let filter = Pipeline::with_routing(opts.routing).stream(filter);
             let stdin_mode = if opts.inherit_stdin {
                 StdinMode::Inherit
             } else {

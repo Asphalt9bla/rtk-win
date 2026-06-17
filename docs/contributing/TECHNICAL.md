@@ -240,7 +240,7 @@ Each filter module follows the same pattern:
 **Generic pipeline**: commands routed through `core::runner` (captured and
 streamed) also pass through a generic, layered filter pipeline *before* their
 own filter — currently the `decorative` layer (ANSI / blank-run / box-drawing
-removal), user-tunable via `[levels]`. Commands that bypass `runner` (direct
+removal), user-tunable via `[layers]`. Commands that bypass `runner` (direct
 `exec_capture`) do not.
 
 > **Details**: [`src/cmds/README.md`](../src/cmds/README.md) covers the common pattern; [`src/core/pipeline/README.md`](../src/core/pipeline/README.md) covers the generic pipeline, layers, and level resolution.
@@ -266,7 +266,7 @@ Command received
                          else (piped)              -> stream through pipeline
 ```
 
-The exclude list (`cat`, `head`, … built-in + `[levels].exclude`) keeps
+The exclude list (`cat`, `head`, … built-in + `[layers].exclude`) keeps
 raw-output commands byte-exact.
 
 > **Details**: [`src/core/pipeline/README.md`](../src/core/pipeline/README.md) covers the generic pipeline and the global fallback; [`src/core/README.md`](../src/core/README.md) covers the TOML filter engine and trust-gated project filters.

@@ -22,7 +22,7 @@ pub struct Config {
     #[serde(default)]
     pub limits: LimitsConfig,
     #[serde(default)]
-    pub levels: LevelsConfig,
+    pub layers: LayersConfig,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -165,7 +165,7 @@ fn default_truncate() -> String {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct LevelsConfig {
+pub struct LayersConfig {
     /// `none` | `light` | `reasonable` | `high`
     #[serde(default = "default_decorative")]
     pub decorative: String,
@@ -180,7 +180,7 @@ pub struct LevelsConfig {
     pub exclude: Vec<String>,
 }
 
-impl Default for LevelsConfig {
+impl Default for LayersConfig {
     fn default() -> Self {
         Self {
             decorative: default_decorative(),

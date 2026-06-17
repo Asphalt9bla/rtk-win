@@ -17,8 +17,8 @@ cross-cutting layers (currently: decorative chrome removal).
   - `truncate` — scales the item caps (`core::truncate::caps()`): each command
     keeps deciding *which* items to cap, but reads a level-scaled value instead of
     the `CAP_*` const. `reasonable` = today; `high` ÷2; `light` ×2; `none` = no cap.
-- **`Layers`** (`mod.rs`) — a per-command, **code-level** policy of which node
-  layers run. Not user-configurable. A command opts out with `Layers { decorative: false }`.
+- **`Routing`** (`mod.rs`) — a per-command, **code-level** policy of which node
+  layers run. Not user-configurable. A command opts out with `Routing { decorative: false }`.
 - **`Levels`** (`levels.rs`) — the **user-configurable** aggressivity per layer
   (`DecorativeLevel`/`DedupLevel`/`TruncateLevel`), resolved once and cached. Every
   level has a `None` variant = layer off.
@@ -26,7 +26,7 @@ cross-cutting layers (currently: decorative chrome removal).
 
 ## Two execution modes
 
-`Pipeline::for_layers(layers)` then either:
+`Pipeline::with_routing(routing)` then either:
 
 - `run(raw, custom)` — **captured**: apply enabled layers to the whole output,
   then call `custom`. Used by `runner` for `run_filtered` / `run_filtered_with_exit`.
@@ -61,7 +61,7 @@ in `main.rs`. Routing order: **cmds → TOML → global fallback**. The fallback
   filter (decorative only, no command-specific filtering).
 
 The exclude list is a built-in `const` set in `levels.rs`, extended by the user
-via `[levels].exclude`.
+via `[layers].exclude`.
 
 ## Level resolution (`levels.rs`)
 
@@ -69,15 +69,15 @@ Resolved once per process (cached in a `OnceLock`) to keep config off the hot
 path. Precedence, highest first:
 
 1. env (`RTK_DECORATIVE_LEVEL`, `RTK_DEDUP_LEVEL`)
-2. config `[levels]` (`~/.config/rtk/config.toml`)
+2. config `[layers]` (`~/.config/rtk/config.toml`)
 3. built-in default (`reasonable`)
 
 ## Adding a layer
 
 1. New file `pipeline/<layer>.rs` with its level enum + whole-string and (if
    line-oriented) per-line forms.
-2. Add a field to `Layers`.
+2. Add a field to `Routing`.
 3. Apply it in `Pipeline::run` (and `stream` if it has a per-line form), in
    canonical order, before the custom step.
-4. If user-tunable, add a field to `Levels` + `LevelsConfig` and resolve it in
+4. If user-tunable, add a field to `Levels` + `LayersConfig` and resolve it in
    `levels.rs`.

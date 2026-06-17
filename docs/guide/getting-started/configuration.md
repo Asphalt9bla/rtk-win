@@ -50,7 +50,7 @@ enabled = true              # anonymous daily ping — see Telemetry & Privacy f
 [hooks]
 exclude_commands = []       # commands to never auto-rewrite
 
-[levels]
+[layers]
 decorative = "reasonable"   # chrome removal: "none" | "light" | "reasonable" | "high"
 dedup = "exact"             # collapse repeated lines (fallback): "none" | "exact" | "normalized"
 truncate = "reasonable"     # item caps "show N, +M more": "none" | "light" | "reasonable" | "high"
@@ -74,7 +74,7 @@ For full details on what is collected, opt-out options, and GDPR rights, see [Te
 | `RTK_HOOK_AUDIT=1` | Enable hook audit logging |
 | `SKIP_ENV_VALIDATION=1` | Skip env validation (useful with Next.js) |
 
-## Filter levels
+## Filter layers
 
 Before each command's own filter, RTK runs a generic pipeline of layers. Today
 that is the **decorative** layer — lossless chrome removal applied to every
@@ -82,7 +82,7 @@ command routed through RTK (and to otherwise-unsupported commands via the global
 fallback).
 
 ```toml
-[levels]
+[layers]
 decorative = "reasonable"
 exclude = ["mytool"]
 ```
@@ -139,10 +139,10 @@ RTK_DEDUP_LEVEL=normalized rtk <command>
 
 Raw-output commands must stay byte-exact, so RTK never filters them: `cat`,
 `head`, `tail`, `base64`, `xxd`, `hexdump`, `od`, `strings`, `dd`. Add your own
-with `[levels].exclude`:
+with `[layers].exclude` (the `exclude` key under `[layers]`):
 
 ```toml
-[levels]
+[layers]
 exclude = ["mytool", "dump-binary"]
 ```
 
