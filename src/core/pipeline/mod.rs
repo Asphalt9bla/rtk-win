@@ -17,6 +17,14 @@ pub fn truncate_level() -> TruncateLevel {
     levels::current().truncate
 }
 
+pub fn route_toml_output(text: &str) -> String {
+    Pipeline::with_routing(Routing {
+        decorative: true,
+        dedup: true,
+    })
+    .run(text, |s| s.to_string())
+}
+
 use crate::core::stream::StreamFilter;
 use levels::Levels;
 
@@ -106,6 +114,21 @@ mod tests {
             dedup,
             truncate: TruncateLevel::default(),
         }
+    }
+
+    #[test]
+    fn toml_output_is_polished_not_corrupted() {
+        let routing = Routing {
+            decorative: true,
+            dedup: false,
+        };
+        let toml_out = "\x1b[32mok\x1b[0m   \n\n\nrest";
+        let cleaned = Pipeline::with_levels(routing, lv(DL::Reasonable, DD::None))
+            .run(toml_out, |s| s.to_string());
+        assert_eq!(cleaned, "ok\n\nrest");
+        let raw =
+            Pipeline::with_levels(routing, lv(DL::None, DD::None)).run(toml_out, |s| s.to_string());
+        assert_eq!(raw, toml_out);
     }
 
     struct Echo;

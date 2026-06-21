@@ -53,7 +53,10 @@ Commands that bypass `runner` (direct `stream::exec_capture` /
 ## Global fallback
 
 Unsupported commands (no `cmds/` handler, no TOML filter) reach `run_fallback`
-in `main.rs`. Routing order: **cmds → TOML → global fallback**. The fallback:
+in `main.rs`. Routing order: **cmds → TOML → global fallback**. A TOML match
+runs its own filter, then `route_toml_output` sends the result through the
+decorative + dedup layers (global levels; not the truncate dial or per-group).
+The fallback:
 
 - **terminal stdout** → passthrough (inherit stdio) so interactive apps and
   color work.

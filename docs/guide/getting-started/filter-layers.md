@@ -9,7 +9,13 @@ sidebar:
 
 Before each command's own filter runs, RTK passes the output through a small
 pipeline of **generic layers**. Each command's bespoke filter always runs last;
-the layers handle cross-cutting cleanup that applies everywhere.
+the layers handle cross-cutting cleanup that applies everywhere — to Rust
+command filters, TOML filters, and unsupported commands alike.
+
+`decorative` and `dedup` apply to TOML-filtered commands too (run on the
+filter's output, so they never change what the TOML rules matched). `truncate`
+and per-group config stay Rust-command-only — a TOML filter's caps are explicit
+in the filter, and TOML commands have no ecosystem group.
 
 The mental model is simple: **a layer has a level.** You pick how hard each
 layer pushes; `none` turns a layer off. Defaults are tuned to match RTK's

@@ -1224,7 +1224,10 @@ fn run_fallback(parse_error: clap::Error) -> Result<i32> {
                     None
                 };
 
-                let filtered = core::toml_filter::apply_filter(filter, &combined_raw);
+                let filtered = core::pipeline::route_toml_output(&core::toml_filter::apply_filter(
+                    filter,
+                    &combined_raw,
+                ));
                 println!("{}", filtered);
                 if let Some(hint) = tee_hint {
                     println!("{}", hint);
