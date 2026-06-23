@@ -8,9 +8,7 @@ match_output = [
 strip_lines_matching = [
   "^\\s*$",
   "^Please choose a stack",
-  "^Current stack is",
   "^\\s*Owner:",
-  "^\\s*Last updated:",
   "^\\s*Pulumi version used:",
   "^More information at:",
   "^Use `pulumi ",
@@ -25,10 +23,11 @@ input = "No stacks found in the current workspace.\n"
 expected = "pulumi stack: empty"
 
 [[tests.pulumi-stack]]
-name = "strips metadata noise, keeps table"
+name = "keeps stack identity, strips version noise"
 input = """
 Please choose a stack, or create a new one:
 Current stack is dev:
+    Managed by my-user
     Owner: my-org
     Last updated: 2 hours ago
     Pulumi version used: v3.120.0
@@ -39,7 +38,10 @@ Current stack resources (3):
     aws:s3:Bucket                 my-bucket
     aws:iam:Role                  my-role
 """
-expected = """Current stack resources (3):
+expected = """Current stack is dev:
+    Managed by my-user
+    Last updated: 2 hours ago
+Current stack resources (3):
     TYPE                          NAME
     pulumi:pulumi:Stack           my-proj-dev
     aws:s3:Bucket                 my-bucket
