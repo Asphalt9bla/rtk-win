@@ -400,13 +400,11 @@ pub fn run(
             eprintln!("{}", msg);
             return Ok(exit_code);
         }
-        let msg = format!("0 matches for '{}'", pattern_display);
-        println!("{}", msg);
         timer.track(
             &format!("grep -rn '{}' {}", pattern_display, path_display),
             "rtk grep",
             &raw_output,
-            &msg,
+            "",
         );
         return Ok(exit_code);
     }
@@ -464,12 +462,13 @@ pub fn run(
         rtk_output.push_str(&format!("[+{} more]\n", total_matches - shown));
     }
 
-    print!("{}", rtk_output);
+    let guarded = crate::core::guard::never_worse(&raw_output, &rtk_output);
+    print!("{}", guarded);
     timer.track(
         &format!("grep -rn '{}' {}", pattern_display, path_display),
         "rtk grep",
         &raw_output,
-        &rtk_output,
+        guarded,
     );
 
     Ok(exit_code)

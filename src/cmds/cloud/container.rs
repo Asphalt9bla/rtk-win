@@ -1,5 +1,6 @@
 //! Filters Docker and kubectl output into compact summaries.
 
+use crate::core::guard::never_worse;
 use crate::core::runner::{self, RunOptions};
 use crate::core::stream::exec_capture;
 use crate::core::tracking;
@@ -78,9 +79,7 @@ fn docker_ps(_verbose: u8) -> Result<i32> {
     let mut rtk = String::new();
 
     if stdout.trim().is_empty() {
-        rtk.push_str("[docker] 0 containers");
-        println!("{}", rtk);
-        timer.track("docker ps", "rtk docker ps", &raw, &rtk);
+        timer.track("docker ps", "rtk docker ps", &raw, "");
         return Ok(0);
     }
 
@@ -103,8 +102,9 @@ fn docker_ps(_verbose: u8) -> Result<i32> {
         }
     }
 
-    print!("{}", rtk);
-    timer.track("docker ps", "rtk docker ps", &raw, &rtk);
+    let shown = never_worse(&raw, &rtk);
+    print!("{}", shown);
+    timer.track("docker ps", "rtk docker ps", &raw, shown);
     Ok(0)
 }
 
@@ -180,8 +180,9 @@ fn docker_ps_all(_verbose: u8) -> Result<i32> {
         }
     }
 
-    print!("{}", rtk);
-    timer.track("docker ps -a", "rtk docker ps -a", &raw, &rtk);
+    let shown = never_worse(&raw, &rtk);
+    print!("{}", shown);
+    timer.track("docker ps -a", "rtk docker ps -a", &raw, shown);
     Ok(0)
 }
 
@@ -239,9 +240,7 @@ fn docker_images(_verbose: u8) -> Result<i32> {
     let mut rtk = String::new();
 
     if lines.is_empty() {
-        rtk.push_str("[docker] 0 images");
-        println!("{}", rtk);
-        timer.track("docker images", "rtk docker images", &raw, &rtk);
+        timer.track("docker images", "rtk docker images", &raw, "");
         return Ok(0);
     }
 
@@ -299,8 +298,9 @@ fn docker_images(_verbose: u8) -> Result<i32> {
         }
     }
 
-    print!("{}", rtk);
-    timer.track("docker images", "rtk docker images", &raw, &rtk);
+    let shown = never_worse(&raw, &rtk);
+    print!("{}", shown);
+    timer.track("docker images", "rtk docker images", &raw, shown);
     Ok(0)
 }
 
@@ -692,10 +692,11 @@ pub fn run_compose_ps(all: bool, verbose: u8) -> Result<i32> {
     }
 
     let rtk = format_compose_ps(&structured);
-    println!("{}", rtk);
+    let shown = never_worse(&raw, &rtk);
+    println!("{}", shown);
     let label = if all { "docker compose ps -a" } else { "docker compose ps" };
     let rtk_label = if all { "rtk docker compose ps -a" } else { "rtk docker compose ps" };
-    timer.track(label, rtk_label, &raw, &rtk);
+    timer.track(label, rtk_label, &raw, shown);
     Ok(0)
 }
 

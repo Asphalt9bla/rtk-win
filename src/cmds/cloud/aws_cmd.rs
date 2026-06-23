@@ -3,6 +3,7 @@
 //! Replaces verbose `--output table`/`text` with JSON, then compresses.
 //! Specialized filters for high-frequency commands (STS, S3, EC2, ECS, RDS, CloudFormation).
 
+use crate::core::guard::never_worse;
 use crate::core::tee::force_tee_hint;
 use crate::core::tracking;
 use crate::core::truncate::{CAP_INVENTORY, CAP_LIST};
@@ -258,6 +259,7 @@ fn run_generic(subcommand: &str, args: &[String], verbose: u8, full_sub: &str) -
 
     let filtered = match json_cmd::filter_json_compact(&raw, JSON_COMPRESS_DEPTH) {
         Ok(compact) => {
+            let compact = never_worse(&raw, &compact).to_string();
             println!("{}", compact);
             compact
         }
@@ -361,19 +363,14 @@ fn run_aws_filtered(
         FilterResult::new(stdout.clone())
     });
 
-    if result.truncated {
-        if let Some(hint) = crate::core::tee::force_tee_hint(&raw, &slug) {
-            println!("{}\n{}", result.text, hint);
-        } else {
-            println!("{}", result.text);
-        }
-    } else if let Some(hint) = crate::core::tee::tee_and_hint(&raw, &slug, 0) {
-        println!("{}\n{}", result.text, hint);
+    let hint = if result.truncated {
+        crate::core::tee::force_tee_hint(&raw, &slug)
     } else {
-        println!("{}", result.text);
-    }
+        crate::core::tee::tee_and_hint(&raw, &slug, 0)
+    };
+    let shown = crate::core::runner::emit_guarded(&result.text, hint.as_deref(), &raw);
 
-    timer.track(&cmd_label, &rtk_label, &raw, &result.text);
+    timer.track(&cmd_label, &rtk_label, &raw, &shown);
     Ok(0)
 }
 
