@@ -244,14 +244,11 @@ enum Commands {
         path: PathBuf,
     },
 
-    /// Show environment variables (filtered, sensitive masked)
+    /// Show environment variables (filtered)
     Env {
         /// Filter by name (e.g. PATH, AWS)
         #[arg(short, long)]
         filter: Option<String>,
-        /// Show all (include sensitive)
-        #[arg(long)]
-        show_all: bool,
     },
 
     /// Find files with compact tree output (accepts native find flags like -name, -type)
@@ -1751,8 +1748,8 @@ fn run_cli() -> Result<i32> {
             0
         }
 
-        Commands::Env { filter, show_all } => {
-            env_cmd::run(filter.as_deref(), show_all, cli.verbose)?;
+        Commands::Env { filter } => {
+            env_cmd::run(filter.as_deref(), cli.verbose)?;
             0
         }
 
