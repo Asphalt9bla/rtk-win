@@ -407,17 +407,14 @@ fn run_s3_ls(extra_args: &[String], verbose: u8) -> Result<i32> {
     }
 
     let result = filter_s3_ls(&stdout);
-    if result.truncated {
-        if let Some(hint) = crate::core::tee::force_tee_hint(&raw, "aws_s3_ls") {
-            println!("{}\n{}", result.text, hint);
-        } else {
-            println!("{}", result.text);
-        }
+    let hint = if result.truncated {
+        crate::core::tee::force_tee_hint(&raw, "aws_s3_ls")
     } else {
-        println!("{}", result.text);
-    }
+        None
+    };
+    let shown = crate::core::runner::emit_guarded(&result.text, hint.as_deref(), &raw);
 
-    timer.track("aws s3 ls", "rtk aws s3 ls", &raw, &result.text);
+    timer.track("aws s3 ls", "rtk aws s3 ls", &raw, &shown);
     Ok(0)
 }
 
@@ -460,17 +457,14 @@ fn run_s3_transfer(operation: &str, extra_args: &[String], verbose: u8) -> Resul
     }
 
     let result = filter_s3_transfer(&stdout);
-    if result.truncated {
-        if let Some(hint) = force_tee_hint(&raw, &slug) {
-            println!("{}\n{}", result.text, hint);
-        } else {
-            println!("{}", result.text);
-        }
+    let hint = if result.truncated {
+        force_tee_hint(&raw, &slug)
     } else {
-        println!("{}", result.text);
-    }
+        None
+    };
+    let shown = crate::core::runner::emit_guarded(&result.text, hint.as_deref(), &raw);
 
-    timer.track(&cmd_label, &rtk_label, &raw, &result.text);
+    timer.track(&cmd_label, &rtk_label, &raw, &shown);
     Ok(0)
 }
 
