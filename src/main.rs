@@ -244,14 +244,11 @@ enum Commands {
         path: PathBuf,
     },
 
-    /// Show environment variables (filtered, sensitive masked)
+    /// Show environment variables (filtered)
     Env {
         /// Filter by name (e.g. PATH, AWS)
         #[arg(short, long)]
         filter: Option<String>,
-        /// Show all (include sensitive)
-        #[arg(long)]
-        show_all: bool,
     },
 
     /// Find files with compact tree output (accepts native find flags like -name, -type)
@@ -1268,16 +1265,14 @@ fn run_fallback(parse_error: clap::Error) -> Result<i32> {
                 };
 
                 let filtered = core::toml_filter::apply_filter(filter, &combined_raw);
-                println!("{}", filtered);
-                if let Some(hint) = tee_hint {
-                    println!("{}", hint);
-                }
+                let shown =
+                    core::runner::emit_guarded(&filtered, tee_hint.as_deref(), &combined_raw);
 
                 timer.track(
                     &raw_command,
                     &format!("rtk:toml {}", raw_command),
                     &combined_raw,
-                    &filtered,
+                    &shown,
                 );
                 core::tracking::record_parse_failure_silent(&raw_command, &error_message, true);
 
@@ -1753,8 +1748,8 @@ fn run_cli() -> Result<i32> {
             0
         }
 
-        Commands::Env { filter, show_all } => {
-            env_cmd::run(filter.as_deref(), show_all, cli.verbose)?;
+        Commands::Env { filter } => {
+            env_cmd::run(filter.as_deref(), cli.verbose)?;
             0
         }
 

@@ -522,13 +522,11 @@ pub fn run(
             eprintln!("{}", msg);
             return Ok(exit_code);
         }
-        let msg = format!("0 matches for '{}'", pattern_display);
-        println!("{}", msg);
         timer.track(
             &format!("grep -rn '{}' {}", pattern_display, path_display),
             "rtk grep",
             &raw_output,
-            &msg,
+            "",
         );
         return Ok(exit_code);
     }
