@@ -1031,7 +1031,6 @@ fn run_commit(args: &[String], verbose: u8, global_args: &[String]) -> Result<i3
             Ok(0)
         }
         CommitOutcome::Failed(code) => {
-            eprintln!("FAILED: git commit");
             if !stderr.trim().is_empty() {
                 eprint!("{}", stderr);
             }
@@ -1047,19 +1046,14 @@ fn run_commit(args: &[String], verbose: u8, global_args: &[String]) -> Result<i3
 /// Outcome of a `git commit`: a non-success status propagates the exit code
 /// rather than being reported as "ok" (#2494).
 enum CommitOutcome {
-    /// Commit succeeded; carries the compact one-line summary for stdout.
     Ok(String),
-    /// Commit failed; carries git's real exit code to propagate.
     Failed(i32),
 }
 
-/// Classify a `git commit` result. Success extracts the compact "ok <hash>"
-/// line; any failure (including "nothing to commit", which git reports with a
-/// non-zero exit) propagates the real exit code instead of masquerading as ok.
+/// Classify a `git commit` result.
 fn classify_commit_outcome(success: bool, stdout: &str, exit_code: i32) -> CommitOutcome {
     if success {
-        // Extract commit hash from output like "[main abc1234] message" or
-        // "[main (root-commit) abc1234] message" (incl. localized variants).
+        // Extract commit hash from output
         let compact = stdout
             .lines()
             .next()
