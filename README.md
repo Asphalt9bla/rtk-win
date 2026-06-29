@@ -19,7 +19,7 @@
 ```
 Command                    Raw (avg)    RTK (avg)     Saved
 ls (project src)             10,810         460       95.7%
-ls (drivers large)           40,303       5,610       86.1%
+ls (drivers large)           40,303       1,725       95.7%
 wc (src .rs files)              878         160       81.8%
 find (src .rs)                3,848         758       80.3%
 find (src .toml)              2,612         768       70.6%
@@ -28,7 +28,7 @@ tree (src dirs)               5,317       2,671       49.8%
 winget list                   6,897       3,520       49.0%
 systeminfo                    3,637       2,520       30.7%
 
-OVERALL (15 tests):        97,029      42,766       55.9%
+OVERALL (15 tests):        97,029      35,456       63.5%
 ```
 
 > Run `scripts/benchmark.ps1` on your machine to get your own numbers.
