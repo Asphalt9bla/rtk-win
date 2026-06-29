@@ -1,0 +1,11 @@
+[filters.get-process]
+description = "Compact Get-Process output — limit rows"
+match_command = "(?i)^(Get-Process|gps|ps)(\\s|$)"
+strip_ansi = true
+truncate_lines_at = 120
+max_lines = 30
+
+[[tests.get-process]]
+name = "short output passes through"
+input = "Handles  NPM(K)  PM(K)  WS(K)  CPU(s)  Id ProcessName\n-------  ------  -----  -----  ------  -- -----------\n    123      15  12345  67890   1.23 4567 powershell"
+expected = "Handles  NPM(K)  PM(K)  WS(K)  CPU(s)  Id ProcessName\n-------  ------  -----  -----  ------  -- -----------\n    123      15  12345  67890   1.23 4567 powershell"

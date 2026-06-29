@@ -1,0 +1,10 @@
+[filters.compare-object]
+description = "Compact Compare-Object output"
+match_command = "(?i)^(Compare-Object|diff|compare)(\\s|$)"
+strip_ansi = true
+max_lines = 50
+
+[[tests.compare-object]]
+name = "short output passes through"
+input = "InputObject  SideIndicator\n-----------  -------------\nline1        =>\nline2        <="
+expected = "InputObject  SideIndicator\n-----------  -------------\nline1        =>\nline2        <="

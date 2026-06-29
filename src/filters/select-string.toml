@@ -1,0 +1,11 @@
+[filters.select-string]
+description = "Compact Select-String output — truncate lines, limit results"
+match_command = "(?i)^(Select-String|sls)(\\s|$)"
+strip_ansi = true
+truncate_lines_at = 150
+max_lines = 50
+
+[[tests.select-string]]
+name = "short output passes through"
+input = "main.rs:10:fn main() {\nlib.rs:5:pub fn foo() {"
+expected = "main.rs:10:fn main() {\nlib.rs:5:pub fn foo() {"

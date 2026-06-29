@@ -1,163 +1,195 @@
-//! tree command - proxy to native tree with token-optimized output
-//!
-//! This module proxies to the native `tree` command and filters the output
-//! to reduce token usage while preserving structure visibility.
-//!
-//! Token optimization: automatically excludes noise directories via -I pattern
-//! unless -a flag is present (respecting user intent).
-
 use super::constants::NOISE_DIRS;
-use crate::core::runner::{self, RunOptions};
-use crate::core::utils::{resolved_command, tool_exists};
-use anyhow::Result;
+use crate::core::guard::never_worse;
+use crate::core::tracking;
+use anyhow::{Context, Result};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use walkdir::WalkDir;
+
+const DEFAULT_MAX_LINES: usize = 80;
+
+fn truncate_lines(s: &str, max: usize) -> String {
+    let total: Vec<&str> = s.lines().collect();
+    if total.len() <= max {
+        return s.to_string();
+    }
+    let omit = total.len() - max;
+    let mut out: String = total[..max].join("\n");
+    out.push_str(&format!("\n... ({} lines truncated)", omit));
+    out
+}
 
 pub fn run(args: &[String], verbose: u8) -> Result<i32> {
-    if !tool_exists("tree") {
-        anyhow::bail!(
-            "tree command not found. Install it first:\n\
-             - macOS: brew install tree\n\
-             - Ubuntu/Debian: sudo apt install tree\n\
-             - Fedora/RHEL: sudo dnf install tree\n\
-             - Arch: sudo pacman -S tree"
+    let timer = tracking::TimedExecution::start();
+
+    let show_all = args.iter().any(|a| a == "-a" || a == "--all");
+    let target = args
+        .iter()
+        .find(|a| !a.starts_with('-'))
+        .map(|s| s.as_str())
+        .unwrap_or(".");
+
+    if verbose > 0 {
+        eprintln!("Tree: {} (show_all: {})", target, show_all);
+    }
+
+    let output = build_tree(target, show_all)
+        .with_context(|| format!("Failed to build tree for: {}", target))?;
+
+    let trunk = truncate_lines(&output, DEFAULT_MAX_LINES);
+    let shown = never_worse(&output, &trunk);
+    print!("{}", shown);
+
+    if verbose > 0 {
+        eprintln!(
+            "Chars: {} → {} ({}% reduction)",
+            output.len(),
+            shown.len(),
+            if !output.is_empty() {
+                100 - (shown.len() * 100 / output.len())
+            } else {
+                0
+            }
         );
     }
 
-    let mut cmd = resolved_command("tree");
-
-    let show_all = args.iter().any(|a| a == "-a" || a == "--all");
-    let has_ignore = args.iter().any(|a| a == "-I" || a.starts_with("--ignore="));
-
-    if !show_all && !has_ignore {
-        let ignore_pattern = NOISE_DIRS.join("|");
-        cmd.arg("-I").arg(&ignore_pattern);
-    }
-
-    for arg in args {
-        cmd.arg(arg);
-    }
-
-    runner::run_filtered(
-        cmd,
-        "tree",
-        &args.join(" "),
-        |raw| {
-            let filtered = filter_tree_output(raw);
-            if verbose > 0 {
-                eprintln!(
-                    "Lines: {} → {} ({}% reduction)",
-                    raw.lines().count(),
-                    filtered.lines().count(),
-                    if raw.lines().count() > 0 {
-                        100 - (filtered.lines().count() * 100 / raw.lines().count())
-                    } else {
-                        0
-                    }
-                );
-            }
-            filtered
-        },
-        RunOptions::stdout_only()
-            .early_exit_on_failure()
-            .no_trailing_newline(),
-    )
+    timer.track(
+        &format!("tree {}", target),
+        "rtk tree",
+        &output,
+        shown,
+    );
+    Ok(0)
 }
 
-fn filter_tree_output(raw: &str) -> String {
-    let lines: Vec<&str> = raw.lines().collect();
-
-    if lines.is_empty() {
-        return "\n".to_string();
+fn build_tree(root: &str, show_all: bool) -> Result<String> {
+    let root_path = Path::new(root);
+    if !root_path.exists() {
+        anyhow::bail!("Directory not found: {}", root);
     }
 
-    let mut filtered_lines = Vec::new();
+    let root_name = root_path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| root.to_string());
 
-    for line in lines {
-        // Skip the final summary line (e.g., "5 directories, 23 files")
-        if line.contains("director") && line.contains("file") {
-            continue;
+    let entries: Vec<PathBuf> = WalkDir::new(root)
+        .min_depth(1)
+        .into_iter()
+        .filter_entry(|e| {
+            if show_all {
+                return true;
+            }
+            let name = e.file_name().to_string_lossy();
+            if name.starts_with('.') {
+                return false;
+            }
+            !NOISE_DIRS.iter().any(|noise| name == *noise)
+        })
+        .filter_map(|e| e.ok())
+        .map(|e| e.into_path())
+        .collect();
+
+    let mut children_map: HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
+    for entry in &entries {
+        if let Some(parent) = entry.parent() {
+            children_map.entry(parent.to_path_buf()).or_default().push(entry.clone());
         }
+    }
 
-        // Skip empty lines at the end
-        if line.trim().is_empty() && filtered_lines.is_empty() {
-            continue;
+    for list in children_map.values_mut() {
+        list.sort_by(|a, b| {
+            let a_is_dir = a.is_dir();
+            let b_is_dir = b.is_dir();
+            if a_is_dir != b_is_dir {
+                b_is_dir.cmp(&a_is_dir)
+            } else {
+                a.file_name().cmp(&b.file_name())
+            }
+        });
+    }
+
+    let mut result = String::new();
+    result.push_str(&root_name);
+    result.push('\n');
+
+    let root_children = children_map.remove(root_path).unwrap_or_default();
+    for (i, child) in root_children.iter().enumerate() {
+        let is_last = i == root_children.len() - 1;
+        let name = child.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+        print_entry(&mut result, "", child, &name, is_last, &children_map);
+    }
+
+    Ok(result)
+}
+
+fn print_entry(
+    result: &mut String,
+    prefix: &str,
+    path: &Path,
+    name: &str,
+    is_last: bool,
+    children_map: &HashMap<PathBuf, Vec<PathBuf>>,
+) {
+    let connector = if is_last { "└── " } else { "├── " };
+    let suffix = if path.is_dir() { "/" } else { "" };
+
+    result.push_str(&format!("{}{}{}{}\n", prefix, connector, name, suffix));
+
+    if path.is_dir() {
+        let child_prefix = if is_last { "    " } else { "│   " };
+        let children = children_map.get(path).map(|v| v.as_slice()).unwrap_or(&[]);
+        for (i, child) in children.iter().enumerate() {
+            let child_is_last = i == children.len() - 1;
+            let child_name = child.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+            let full_prefix = format!("{}{}", prefix, child_prefix);
+            print_entry(result, &full_prefix, child, &child_name, child_is_last, children_map);
         }
-
-        filtered_lines.push(line);
     }
-
-    // Remove trailing empty lines
-    while filtered_lines.last().is_some_and(|l| l.trim().is_empty()) {
-        filtered_lines.pop();
-    }
-
-    filtered_lines.join("\n") + "\n"
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    fn setup_test_dir() -> TempDir {
+        let temp = TempDir::new().unwrap();
+        fs::create_dir_all(temp.path().join("src")).unwrap();
+        fs::write(temp.path().join("Cargo.toml"), "[package]\n").unwrap();
+        fs::write(temp.path().join("src/main.rs"), "fn main() {}\n").unwrap();
+        fs::write(temp.path().join("src/lib.rs"), "pub fn foo() {}\n").unwrap();
+        temp
+    }
 
     #[test]
-    fn test_filter_removes_summary() {
-        let input = ".\n├── src\n│   └── main.rs\n└── Cargo.toml\n\n2 directories, 3 files\n";
-        let output = filter_tree_output(input);
-        assert!(!output.contains("directories"));
-        assert!(!output.contains("files"));
-        assert!(output.contains("main.rs"));
+    fn test_tree_contains_files() {
+        let temp = setup_test_dir();
+        let output = build_tree(temp.path().to_str().unwrap(), false).unwrap();
         assert!(output.contains("Cargo.toml"));
-    }
-
-    #[test]
-    fn test_filter_preserves_structure() {
-        let input = ".\n├── src\n│   ├── main.rs\n│   └── lib.rs\n└── tests\n    └── test.rs\n";
-        let output = filter_tree_output(input);
-        assert!(output.contains("├──"));
-        assert!(output.contains("│"));
-        assert!(output.contains("└──"));
+        assert!(output.contains("src/"));
         assert!(output.contains("main.rs"));
-        assert!(output.contains("test.rs"));
+        assert!(output.contains("lib.rs"));
     }
 
     #[test]
-    fn test_filter_handles_empty() {
-        let input = "";
-        let output = filter_tree_output(input);
-        assert_eq!(output, "\n");
+    fn test_tree_root_is_dir_name() {
+        let temp = setup_test_dir();
+        let dir_name = temp.path().file_name().unwrap().to_string_lossy().to_string();
+        let output = build_tree(temp.path().to_str().unwrap(), false).unwrap();
+        assert!(output.starts_with(&dir_name));
     }
 
     #[test]
-    fn test_filter_removes_trailing_empty_lines() {
-        let input = ".\n├── file.txt\n\n\n";
-        let output = filter_tree_output(input);
-        assert_eq!(output.matches('\n').count(), 2); // Root + file.txt + final newline
-    }
-
-    #[test]
-    fn test_filter_summary_variations() {
-        // Test different summary formats
-        let inputs = vec![
-            (".\n└── file.txt\n\n0 directories, 1 file\n", "1 file"),
-            (".\n└── file.txt\n\n1 directory, 0 files\n", "1 directory"),
-            (".\n└── file.txt\n\n10 directories, 25 files\n", "25 files"),
-        ];
-
-        for (input, summary_fragment) in inputs {
-            let output = filter_tree_output(input);
-            assert!(
-                !output.contains(summary_fragment),
-                "Should remove summary '{}' from output",
-                summary_fragment
-            );
-            assert!(
-                output.contains("file.txt"),
-                "Should preserve file.txt in output"
-            );
-        }
+    fn test_tree_uses_tree_chars() {
+        let temp = setup_test_dir();
+        let output = build_tree(temp.path().to_str().unwrap(), false).unwrap();
+        assert!(output.contains("├──") || output.contains("└──"));
     }
 
     #[test]
     fn test_noise_dirs_constant() {
-        // Verify NOISE_DIRS contains expected patterns
         assert!(NOISE_DIRS.contains(&"node_modules"));
         assert!(NOISE_DIRS.contains(&".git"));
         assert!(NOISE_DIRS.contains(&"target"));
@@ -165,5 +197,29 @@ mod tests {
         assert!(NOISE_DIRS.contains(&".next"));
         assert!(NOISE_DIRS.contains(&"dist"));
         assert!(NOISE_DIRS.contains(&"build"));
+    }
+
+    #[test]
+    fn test_tree_filters_noise() {
+        let temp = TempDir::new().unwrap();
+        fs::create_dir(temp.path().join("node_modules")).unwrap();
+        fs::create_dir(temp.path().join("src")).unwrap();
+        fs::write(temp.path().join("main.rs"), "fn main() {}\n").unwrap();
+
+        let output = build_tree(temp.path().to_str().unwrap(), false).unwrap();
+        assert!(!output.contains("node_modules"));
+        assert!(output.contains("src/"));
+        assert!(output.contains("main.rs"));
+    }
+
+    #[test]
+    fn test_tree_show_all_includes_hidden() {
+        let temp = TempDir::new().unwrap();
+        fs::create_dir(temp.path().join(".git")).unwrap();
+        fs::write(temp.path().join(".hidden"), "data").unwrap();
+
+        let output = build_tree(temp.path().to_str().unwrap(), true).unwrap();
+        assert!(output.contains(".git/"));
+        assert!(output.contains(".hidden"));
     }
 }

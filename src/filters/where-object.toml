@@ -1,0 +1,11 @@
+[filters.where-object]
+description = "Compact Where-Object output — limit rows"
+match_command = "(?i)^(Where-Object|where|\\?\\s*\\{)(\\s|$)"
+strip_ansi = true
+truncate_lines_at = 120
+max_lines = 30
+
+[[tests.where-object]]
+name = "short output passes through"
+input = "Name  Status\n----  ------\nBITS  Running"
+expected = "Name  Status\n----  ------\nBITS  Running"

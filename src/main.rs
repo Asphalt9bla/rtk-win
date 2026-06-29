@@ -1424,17 +1424,6 @@ fn validate_pnpm_filters(filters: &[String], command: &PnpmCommands) -> Option<S
 }
 
 fn main() {
-    // Reset SIGPIPE to default handler so writing to a closed pipe
-    // e.g `rtk git log | head` exits silently instead of panicking.
-    // Rust ignores SIGPIPE by default and with panic="abort" in the
-    // release profile that becomes SIGABRT + coredump.
-    #[cfg(unix)]
-    #[allow(unsafe_code)]
-    // nosemgrep: unsafe-block
-    unsafe {
-        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
-    }
-
     let code = match run_cli() {
         Ok(code) => code,
         Err(e) => {
@@ -2331,7 +2320,7 @@ fn run_cli() -> Result<i32> {
                     .arg(&raw)
                     .status()
                     .with_context(|| format!("Failed to execute: {}", raw))?;
-                core::utils::exit_code_from_status(&status, "run")
+                status.code().unwrap_or(1)
             }
         }
 
@@ -2379,31 +2368,6 @@ fn run_cli() -> Result<i32> {
             // panic=abort, so we register a signal handler that kills the child
             // PID stored in this atomic.
             static PROXY_CHILD_PID: AtomicU32 = AtomicU32::new(0);
-
-            #[cfg(unix)]
-            #[allow(unsafe_code)]
-            {
-                unsafe extern "C" fn handle_signal(sig: libc::c_int) {
-                    let pid = PROXY_CHILD_PID.load(Ordering::SeqCst);
-                    if pid != 0 {
-                        libc::kill(pid as libc::pid_t, libc::SIGTERM);
-                        libc::waitpid(pid as libc::pid_t, std::ptr::null_mut(), 0);
-                    }
-                    libc::signal(sig, libc::SIG_DFL);
-                    libc::raise(sig);
-                }
-                // nosemgrep: unsafe-block
-                unsafe {
-                    libc::signal(
-                        libc::SIGINT,
-                        handle_signal as *const () as libc::sighandler_t,
-                    );
-                    libc::signal(
-                        libc::SIGTERM,
-                        handle_signal as *const () as libc::sighandler_t,
-                    );
-                }
-            }
 
             struct ChildGuard(Option<std::process::Child>);
             impl Drop for ChildGuard {

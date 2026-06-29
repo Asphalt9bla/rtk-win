@@ -1,0 +1,11 @@
+[filters.tasklist]
+description = "Compact tasklist output — limit rows, truncate lines"
+match_command = "^tasklist(\\s|$)"
+strip_ansi = true
+max_lines = 40
+truncate_lines_at = 80
+
+[[tests.tasklist]]
+name = "limits to 40 lines"
+input = "Image Name  PID  Session Name  Session#  Mem Usage\n=======  ===  ============  ========  =========\nSystem  4  Services  0  8 K\ncmd.exe  100  Console  1  5,000 K\nnotepad.exe  200  Console  1  12,000 K\n"
+expected = "Image Name  PID  Session Name  Session#  Mem Usage\n=======  ===  ============  ========  =========\nSystem  4  Services  0  8 K\ncmd.exe  100  Console  1  5,000 K\nnotepad.exe  200  Console  1  12,000 K\n"

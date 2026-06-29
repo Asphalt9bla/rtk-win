@@ -1,0 +1,11 @@
+[filters.get-childitem]
+description = "Compact Get-ChildItem output — truncate wide lines, limit rows"
+match_command = "(?i)^(Get-ChildItem|gci|dir|ls)(\\s|$)"
+strip_ansi = true
+truncate_lines_at = 120
+max_lines = 50
+
+[[tests.get-childitem]]
+name = "short output passes through"
+input = "Mode  LastWriteTime  Length  Name\n-----  -------------  ------  ----\n-a---  1/1/2024  12:00  1234  main.rs"
+expected = "Mode  LastWriteTime  Length  Name\n-----  -------------  ------  ----\n-a---  1/1/2024  12:00  1234  main.rs"

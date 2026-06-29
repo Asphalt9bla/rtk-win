@@ -1,0 +1,11 @@
+[filters.get-member]
+description = "Compact Get-Member output — limit rows"
+match_command = "(?i)^(Get-Member|gm)(\\s|$)"
+strip_ansi = true
+truncate_lines_at = 100
+max_lines = 30
+
+[[tests.get-member]]
+name = "short output passes through"
+input = "TypeName: System.String\nName  MemberType  Definition\n----  ----------  ----------\nLength  Property  int Length {get;}"
+expected = "TypeName: System.String\nName  MemberType  Definition\n----  ----------  ----------\nLength  Property  int Length {get;}"

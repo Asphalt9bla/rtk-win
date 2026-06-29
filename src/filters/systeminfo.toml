@@ -1,0 +1,11 @@
+[filters.systeminfo]
+description = "Compact systeminfo — strip empty lines, limit to key fields"
+match_command = "^systeminfo(\\s|$)"
+strip_ansi = true
+strip_lines_matching = ["^\\s*$"]
+max_lines = 30
+
+[[tests.systeminfo]]
+name = "strips blank lines, limits to 30"
+input = "Host Name: DESKTOP\nOS Name: Windows 10\n\nOS Version: 10.0.19045\n\nSystem Directory: C:\\Windows\n\n"
+expected = "Host Name: DESKTOP\nOS Name: Windows 10\nOS Version: 10.0.19045\nSystem Directory: C:\\Windows"

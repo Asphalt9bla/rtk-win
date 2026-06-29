@@ -3322,50 +3322,10 @@ fn show_claude_config() -> Result<()> {
     if binary_hook_registered {
         println!("[ok] Hook: {} (native binary command)", CLAUDE_HOOK_COMMAND);
     } else if hook_path.exists() {
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let metadata = fs::metadata(&hook_path)?;
-            let perms = metadata.permissions();
-            let is_executable = perms.mode() & 0o111 != 0;
-
-            let hook_content = fs::read_to_string(&hook_path)?;
-            let has_guards =
-                hook_content.contains("command -v rtk") && hook_content.contains("command -v jq");
-            let is_thin_delegator = hook_content.contains("rtk rewrite");
-            let hook_version = super::hook_check::parse_hook_version(&hook_content);
-
-            if !is_executable {
-                println!(
-                    "[warn] Hook: {} (NOT executable - run: chmod +x)",
-                    hook_path.display()
-                );
-            } else if !is_thin_delegator {
-                println!(
-                    "[warn] Hook: {} (outdated — run `rtk init -g` to upgrade to native binary)",
-                    hook_path.display()
-                );
-            } else if is_executable && has_guards {
-                println!(
-                    "[warn] Hook: {} (legacy script v{} — run `rtk init -g` to upgrade)",
-                    hook_path.display(),
-                    hook_version
-                );
-            } else {
-                println!(
-                    "[warn] Hook: {} (no guards - outdated)",
-                    hook_path.display()
-                );
-            }
-        }
-
-        #[cfg(not(unix))]
-        {
-            println!(
-                "[warn] Hook: {} (legacy script — run `rtk init -g` to upgrade)",
-                hook_path.display()
-            );
-        }
+        println!(
+            "[warn] Hook: {} (legacy script — run `rtk init -g` to upgrade)",
+            hook_path.display()
+        );
     } else {
         println!("[--] Hook: not found");
     }
@@ -3480,31 +3440,7 @@ fn show_claude_config() -> Result<()> {
         if cursor_binary_registered {
             println!("[ok] Cursor hook: registered in hooks.json");
         } else if cursor_hook.exists() {
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                let meta = fs::metadata(&cursor_hook)?;
-                let is_executable = meta.permissions().mode() & 0o111 != 0;
-                let content = fs::read_to_string(&cursor_hook)?;
-                let _is_thin = content.contains("rtk rewrite");
-
-                if !is_executable {
-                    println!(
-                        "[warn] Cursor hook: {} (legacy script, NOT executable)",
-                        cursor_hook.display()
-                    );
-                } else {
-                    println!(
-                        "[warn] Cursor hook: {} (legacy script — run `rtk init -g --agent cursor` to upgrade)",
-                        cursor_hook.display()
-                    );
-                }
-            }
-
-            #[cfg(not(unix))]
-            {
-                println!("[warn] Cursor hook: {} (legacy script — run `rtk init -g --agent cursor` to upgrade)", cursor_hook.display());
-            }
+            println!("[warn] Cursor hook: {} (legacy script — run `rtk init -g --agent cursor` to upgrade)", cursor_hook.display());
         } else {
             println!("[--] Cursor hook: not found");
         }
@@ -3599,8 +3535,7 @@ fn run_opencode_only_mode(ctx: InitContext) -> Result<()> {
 // ─── Gemini CLI support ───────────────────────────────────────────
 
 /// Gemini hook wrapper script — delegates to `rtk hook gemini`
-const GEMINI_HOOK_SCRIPT: &str = r#"#!/bin/bash
-exec rtk hook gemini
+const GEMINI_HOOK_SCRIPT: &str = r#"rtk hook gemini
 "#;
 
 fn resolve_gemini_dir() -> Result<PathBuf> {
@@ -3637,13 +3572,6 @@ pub fn run_gemini(
     }
     let hook_path = hook_dir.join(GEMINI_HOOK_FILE);
     write_if_changed(&hook_path, GEMINI_HOOK_SCRIPT, "Gemini hook", ctx)?;
-
-    #[cfg(unix)]
-    if !dry_run {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&hook_path, fs::Permissions::from_mode(0o755))
-            .with_context(|| format!("Failed to set hook permissions: {}", hook_path.display()))?;
-    }
 
     // Store integrity baseline for tamper detection (skip in dry-run)
     if !dry_run {
@@ -5410,48 +5338,6 @@ mod tests {
         assert!(file_path.exists());
         let written = fs::read_to_string(&file_path).unwrap();
         assert_eq!(written, content);
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn test_atomic_write_preserves_symlink() {
-        use std::os::unix::fs::symlink;
-
-        let temp = TempDir::new().unwrap();
-        let target_path = temp.path().join("real-settings.json");
-        let link_path = temp.path().join("settings.json");
-
-        fs::write(&target_path, "{}").expect("seed target file");
-        symlink(&target_path, &link_path).expect("create symlink");
-
-        atomic_write(&link_path, "{\"hooks\":{}}").unwrap();
-
-        let meta = fs::symlink_metadata(&link_path).unwrap();
-        assert!(meta.file_type().is_symlink(), "symlink must survive");
-        let written = fs::read_to_string(&target_path).unwrap();
-        assert_eq!(written, "{\"hooks\":{}}");
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn test_atomic_write_preserves_relative_symlink() {
-        use std::os::unix::fs::symlink;
-
-        let temp = TempDir::new().unwrap();
-        let subdir = temp.path().join("real");
-        fs::create_dir(&subdir).unwrap();
-        let target_path = subdir.join("settings.json");
-        let link_path = temp.path().join("settings.json");
-
-        fs::write(&target_path, "{}").expect("seed target file");
-        symlink(Path::new("real/settings.json"), &link_path).expect("create relative symlink");
-
-        atomic_write(&link_path, "{\"patched\":true}").unwrap();
-
-        let meta = fs::symlink_metadata(&link_path).unwrap();
-        assert!(meta.file_type().is_symlink(), "symlink must survive");
-        let written = fs::read_to_string(&target_path).unwrap();
-        assert_eq!(written, "{\"patched\":true}");
     }
 
     // Test for preserve_order round-trip

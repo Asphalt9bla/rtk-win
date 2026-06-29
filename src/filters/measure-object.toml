@@ -1,0 +1,11 @@
+[filters.measure-object]
+description = "Compact Measure-Object output"
+match_command = "(?i)^(Measure-Object|measure)(\\s|$)"
+strip_ansi = true
+strip_lines_matching = ["^\\s*$"]
+max_lines = 20
+
+[[tests.measure-object]]
+name = "short output passes through"
+input = "Count: 42"
+expected = "Count: 42"

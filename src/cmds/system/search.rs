@@ -8,7 +8,7 @@
 
 use crate::core::stream::{exec_capture, exec_capture_stdin, CaptureResult};
 use crate::core::tracking;
-use crate::core::utils::{resolved_command, strip_ansi};
+use crate::core::utils::{resolved_command, strip_ansi, tool_exists};
 use crate::core::{args_utils, config};
 use anyhow::{Context, Result};
 use regex::Regex;
@@ -347,6 +347,15 @@ pub fn run(
     args: &[String],
     verbose: u8,
 ) -> Result<i32> {
+    if !tool_exists(engine.bin()) {
+        anyhow::bail!(
+            "'{}' not found on PATH.\n\
+             Install ripgrep (recommended):  winget install BurntSushi.ripgrep.MSVC\n\
+             Or: cargo install ripgrep\n\
+             Alternative: Use PowerShell:  Select-String -Pattern \"...\"",
+            engine.bin()
+        );
+    }
     let timer = tracking::TimedExecution::start();
 
     // --version / --help: pass through to the engine without filtering.

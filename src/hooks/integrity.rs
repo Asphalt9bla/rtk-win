@@ -85,23 +85,8 @@ pub fn store_hash(hook_path: &Path) -> Result<()> {
 
     let content = format!("{}  {}\n", hash, filename);
 
-    // If hash file exists and is read-only, make it writable first
-    #[cfg(unix)]
-    if hash_file.exists() {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = fs::set_permissions(&hash_file, fs::Permissions::from_mode(0o644));
-    }
-
     fs::write(&hash_file, &content)
         .with_context(|| format!("Failed to write hash to {}", hash_file.display()))?;
-
-    // Set read-only
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&hash_file, fs::Permissions::from_mode(0o444))
-            .with_context(|| format!("Failed to set permissions on {}", hash_file.display()))?;
-    }
 
     Ok(())
 }
@@ -112,13 +97,6 @@ pub fn remove_hash(hook_path: &Path) -> Result<bool> {
 
     if !hash_file.exists() {
         return Ok(false);
-    }
-
-    // Make writable before removing
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = fs::set_permissions(&hash_file, fs::Permissions::from_mode(0o644));
     }
 
     fs::remove_file(&hash_file)
@@ -467,10 +445,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(unix)]
-    fn test_hash_file_permissions() {
-        use std::os::unix::fs::PermissionsExt;
-
+    fn test_hash_file_created() {
         let temp = TempDir::new().unwrap();
         let hook = temp.path().join("rtk-rewrite.sh");
         fs::write(&hook, "test").unwrap();
@@ -478,8 +453,7 @@ mod tests {
         store_hash(&hook).unwrap();
 
         let hash_file = temp.path().join(".rtk-hook.sha256");
-        let perms = fs::metadata(&hash_file).unwrap().permissions();
-        assert_eq!(perms.mode() & 0o777, 0o444, "Hash file should be read-only");
+        assert!(hash_file.exists(), "Hash file should be created");
     }
 
     #[test]

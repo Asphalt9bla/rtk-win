@@ -1,0 +1,10 @@
+[filters.get-command]
+description = "Compact Get-Command output — limit rows"
+match_command = "(?i)^(Get-Command|gcm)(\\s|$)"
+strip_ansi = true
+max_lines = 40
+
+[[tests.get-command]]
+name = "short output passes through"
+input = "CommandType  Name  Version  Source\n-----------  ----  -------  ------\nCmdlet  Get-ChildItem  7.0.0  Microsoft.PowerShell.Management"
+expected = "CommandType  Name  Version  Source\n-----------  ----  -------  ------\nCmdlet  Get-ChildItem  7.0.0  Microsoft.PowerShell.Management"

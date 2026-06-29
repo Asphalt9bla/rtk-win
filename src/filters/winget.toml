@@ -1,0 +1,40 @@
+[filters.winget]
+description = "Compact winget output — strip headers, truncate rows, limit"
+match_command = "^winget(\\s|$)"
+strip_ansi = true
+truncate_lines_at = 100
+max_lines = 40
+strip_lines_matching = [
+  "^\\s*$",
+  "^\\s*-+\\s*$",
+  "^\\s*-\\s+",
+  "^\\s*\\.+\\s*$",
+  "^-+File\\s+-+",
+  "^\\s*[│├└].*",
+  "^Found multiple",
+  "^\\s*\\|\\s*$",
+]
+replace = [
+  { pattern = "\\s{3,}", replacement = "  " },
+  { pattern = "ARP\\\\Machine\\\\X\\d+\\\\[A-F0-9]+", replacement = "ARP" },
+]
+
+[[tests.winget]]
+name = "install output stripped of spinner garbage"
+input = "Name  Id  Version  Available\n----  --  -------  ---------\n7zip  7zip.7zip  24.08  24.09\n  ████████░░░░░░  Downloading\n  ████████████████  Verifying\nSuccessfully installed"
+expected = "Name  Id  Version  Available\n----  --  -------  ---------\n7zip  7zip.7zip  24.08  24.09\nSuccessfully installed"
+
+[[tests.winget]]
+name = "list output tables compacted"
+input = "Name  Id  Version  Available  Source\n----  --  -------  ---------  ------\n7zip  7zip.7zip  24.08  24.09  winget\nBrave  Brave.Brave  1.75  1.76  winget"
+expected = "Name  Id  Version  Available  Source\n----  --  -------  ---------  ------\n7zip  7zip.7zip  24.08  24.09  winget\nBrave  Brave.Brave  1.75  1.76  winget"
+
+[[tests.winget]]
+name = "strips leading dash noise"
+input = "   -\n\n   -\n\nName  Id  Version  Available\n----  --  -------  ---------\n7zip  7zip.7zip  24.08  24.09"
+expected = "Name  Id  Version  Available\n----  --  -------  ---------\n7zip  7zip.7zip  24.08  24.09"
+
+[[tests.winget]]
+name = "compresses multi-spaces"
+input = "Name     Id    Version\n----  --  -------\n7zip        7zip.7zip      24.08"
+expected = "Name  Id  Version\n----  --  -------\n7zip  7zip.7zip  24.08"

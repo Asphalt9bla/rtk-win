@@ -1,0 +1,10 @@
+[filters.get-service]
+description = "Compact Get-Service output — limit rows"
+match_command = "(?i)^(Get-Service|gsv|sc query)(\\s|$)"
+strip_ansi = true
+max_lines = 30
+
+[[tests.get-service]]
+name = "short output passes through"
+input = "Status  Name  DisplayName\n------  ----  -----------\nRunning  BITS  Background Intelligent Transfer"
+expected = "Status  Name  DisplayName\n------  ----  -----------\nRunning  BITS  Background Intelligent Transfer"

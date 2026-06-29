@@ -1,0 +1,10 @@
+[filters.get-alias]
+description = "Compact Get-Alias output — limit rows"
+match_command = "(?i)^(Get-Alias|gal)(\\s|$)"
+strip_ansi = true
+max_lines = 40
+
+[[tests.get-alias]]
+name = "short output passes through"
+input = "CommandType  Name  Version  Source\n-----------  ----  -------  ------\nAlias  % -> ForEach-Object\nAlias  ? -> Where-Object\nAlias  cat -> Get-Content"
+expected = "CommandType  Name  Version  Source\n-----------  ----  -------  ------\nAlias  % -> ForEach-Object\nAlias  ? -> Where-Object\nAlias  cat -> Get-Content"

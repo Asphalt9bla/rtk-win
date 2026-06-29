@@ -1,505 +1,140 @@
-<p align="center">
-  <img src="https://avatars.githubusercontent.com/u/258253854?v=4" alt="RTK - Rust Token Killer" width="500">
-</p>
+# rtk-win — Rust Token Killer for Windows
 
-<p align="center">
-  <strong>High-performance CLI proxy that reduces LLM token consumption by 60-90%</strong>
-</p>
+**Native Windows fork of [rtk](https://github.com/rtk-ai/rtk)** — replaces Unix-only commands (`ls`, `tree`, `wc`, `find`) with Rust-native implementations and adds PowerShell cmdlet TOML filters for 60-90% LLM token savings on Windows.
 
-<p align="center">
-  <a href="https://github.com/rtk-ai/rtk/actions"><img src="https://github.com/rtk-ai/rtk/workflows/Security%20Check/badge.svg" alt="CI"></a>
-  <a href="https://github.com/rtk-ai/rtk/releases"><img src="https://img.shields.io/github/v/release/rtk-ai/rtk" alt="Release"></a>
-  <a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0"></a>
-  <a href="https://discord.gg/RySmvNF5kF"><img src="https://img.shields.io/discord/1470188214710046894?label=Discord&logo=discord" alt="Discord"></a>
-  <a href="https://formulae.brew.sh/formula/rtk"><img src="https://img.shields.io/homebrew/v/rtk" alt="Homebrew"></a>
-</p>
+## What's Different
 
-<p align="center">
-  <a href="https://www.rtk-ai.app">Website</a> &bull;
-  <a href="#installation">Install</a> &bull;
-  <a href="https://www.rtk-ai.app/guide/troubleshooting">Troubleshooting</a> &bull;
-  <a href="docs/contributing/ARCHITECTURE.md">Architecture</a> &bull;
-  <a href="https://discord.gg/RySmvNF5kF">Discord</a>
-</p>
+| Area | Upstream rtk | rtk-win |
+|------|-------------|---------|
+| `ls`, `tree`, `wc`, `find` | Call Unix binaries via shell | Rust-native using `std::fs` / `walkdir` |
+| PowerShell cmdlets | Not supported | 15 TOML filters (`Get-ChildItem`, `Select-String`, etc.) |
+| Windows package managers | Not supported | `winget` TOML filter (strips progress, truncates tables) |
+| Install | `install.sh` (Unix) | `install.ps1` (PowerShell) |
+| Hooks | Bash scripts (`.sh`) | PowerShell scripts (`.ps1`) |
+| `rtk init --opencode` | Not available | Installs OpenCode plugin for transparent rewrite |
+| System dependencies | `libc`, Unix signal handlers, process groups | All removed — pure Win32 API via Rust stdlib |
 
-<p align="center">
-  <a href="README.md">English</a> &bull;
-  <a href="README_fr.md">Francais</a> &bull;
-  <a href="README_zh.md">中文</a> &bull;
-  <a href="README_ja.md">日本語</a> &bull;
-  <a href="README_ko.md">한국어</a> &bull;
-  <a href="README_es.md">Espanol</a> &bull;
-  <a href="README_pt.md">Português</a>
-</p>
+## Token Savings (Windows Benchmark)
 
----
+```
+Command                    Raw (avg)    RTK (avg)     Saved
+ls (project src)             10,810         460       95.7%
+ls (drivers large)           40,303       5,610       86.1%
+wc (src .rs files)              878         160       81.8%
+find (src .rs)                3,848         758       80.3%
+find (src .toml)              2,612         768       70.6%
+git status                       72          22       69.4%
+tree (src dirs)               5,317       2,671       49.8%
+winget list                   6,897       3,520       49.0%
+systeminfo                    3,637       2,520       30.7%
 
-rtk filters and compresses command outputs before they reach your LLM context. Single Rust binary, 100+ supported commands, <10ms overhead.
+OVERALL (15 tests):        97,029      42,766       55.9%
+```
 
-## Token Savings (30-min Claude Code Session)
-
-| Operation | Frequency | Standard | rtk | Savings |
-|-----------|-----------|----------|-----|---------|
-| `ls` / `tree` | 10x | 2,000 | 400 | -80% |
-| `cat` / `read` | 20x | 40,000 | 12,000 | -70% |
-| `grep` / `rg` | 8x | 16,000 | 3,200 | -80% |
-| `git status` | 10x | 3,000 | 600 | -80% |
-| `git diff` | 5x | 10,000 | 2,500 | -75% |
-| `git log` | 5x | 2,500 | 500 | -80% |
-| `git add/commit/push` | 8x | 1,600 | 120 | -92% |
-| `cargo test` / `npm test` | 5x | 25,000 | 2,500 | -90% |
-| `ruff check` | 3x | 3,000 | 600 | -80% |
-| `pytest` | 4x | 8,000 | 800 | -90% |
-| `go test` | 3x | 6,000 | 600 | -90% |
-| `docker ps` | 3x | 900 | 180 | -80% |
-| **Total** | | **~118,000** | **~23,900** | **-80%** |
-
-> Estimates based on medium-sized TypeScript/Rust projects. Actual savings vary by project size.
+> Run `scripts/benchmark.ps1` on your machine to get your own numbers.
 
 ## Installation
 
-### Homebrew (recommended)
+```powershell
+# From source (recommended)
+git clone https://github.com/YOUR_USER/rtk-win.git
+cd rtk-win
+.\install.ps1
 
-```bash
-brew install rtk
+# Or build manually
+cargo build --release
+Copy-Item target\release\rtk.exe $env:USERPROFILE\.cargo\bin\
 ```
 
-### Quick Install (Linux/macOS)
+### Prerequisites
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
-```
-
-> Installs to `~/.local/bin`. Add to PATH if needed:
-> ```bash
-> echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc  # or ~/.zshrc
-> ```
-
-### Cargo
-
-```bash
-cargo install --git https://github.com/rtk-ai/rtk
-```
-
-### Pre-built Binaries
-
-Download from [releases](https://github.com/rtk-ai/rtk/releases):
-- macOS: `rtk-x86_64-apple-darwin.tar.gz` / `rtk-aarch64-apple-darwin.tar.gz`
-- Linux: `rtk-x86_64-unknown-linux-musl.tar.gz` / `rtk-aarch64-unknown-linux-gnu.tar.gz`
-- Windows: `rtk-x86_64-pc-windows-msvc.zip`
-
-> **Windows users**: Extract the zip and place `rtk.exe` somewhere in your PATH (e.g. `C:\Users\<you>\.local\bin`). Run RTK from **Command Prompt**, **PowerShell**, or **Windows Terminal** — do not double-click the `.exe` (it will flash and close). For the best experience, use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) where the full hook system works natively. See [Windows setup](#windows) below for details.
-
-### Verify Installation
-
-```bash
-rtk --version   # Should show "rtk 0.28.2"
-rtk gain        # Should show token savings stats
-```
-
-> **Name collision warning**: Another project named "rtk" (Rust Type Kit) exists on crates.io. If `rtk gain` fails, you have the wrong package. Use `cargo install --git` above instead.
+- [Rust](https://rustup.rs/) (MSVC toolchain, `rustup default stable-x86_64-pc-windows-msvc`)
+- Windows 10+ (ARM64 or x64)
 
 ## Quick Start
 
-```bash
-# 1. Install for your AI tool
-rtk init -g                     # Claude Code / Copilot (default)
-rtk init -g --gemini            # Gemini CLI
-rtk init -g --codex             # Codex (OpenAI)
-rtk init -g --agent cursor      # Cursor
-rtk init -g --agent windsurf    # Windsurf
-rtk init --agent cline          # Cline / Roo Code
-rtk init --agent kilocode       # Kilo Code
-rtk init --agent antigravity    # Google Antigravity
-rtk init -g --agent pi          # Pi
-rtk init --agent hermes         # Hermes
+```powershell
+# Install for OpenCode
+rtk init -g --opencode
 
-# 2. Restart your AI tool, then test
-git status  # Automatically rewritten to rtk git status
+# Or for Claude Code / Cline / Gemini CLI
+rtk init -g --agent claude
+rtk init --agent cline
+rtk init -g --gemini
+
+# Test it
+rtk ls .                        # Compact directory listing
+rtk tree src                    # Truncated directory tree
+rtk wc src\*.rs                 # Line/word/byte counts
+rtk find -name "*.rs"           # File search (grouped by directory)
+rtk git status                  # Compact git status
+rtk winget list                 # Truncated package list
 ```
 
-Hook-based agents rewrite Bash commands (e.g., `git status` -> `rtk git status`) before execution. Plugin-based agents, including Hermes, use their plugin API to rewrite commands before execution. The agent receives compact output without needing to call `rtk` explicitly.
+## Rust-Native Commands
 
-**Important:** the hook only runs on Bash tool calls. Claude Code built-in tools like `Read`, `Grep`, and `Glob` do not pass through the Bash hook, so they are not auto-rewritten. To get RTK's compact output for those workflows, use shell commands (`cat`/`head`/`tail`, `rg`/`grep`, `find`) or call `rtk read`, `rtk grep`, or `rtk find` directly.
+These commands run entirely inside RTK — no external process needed:
 
-## How It Works
+- **`ls`** — Compact directory listing with human-readable sizes, grouped by type, extension summary, `max_lines` truncation
+- **`tree`** — Unicode tree visualization, filters noise dirs (`node_modules`, `.git`, `target`), `max_lines` truncation
+- **`wc`** — Line/word/byte/char counting with common prefix stripping for multi-file mode
+- **`find`** — Glob-based file search supporting `-name`, `-iname`, `-type`, `-maxdepth`, results grouped by directory with extension summary (max 50 results by default)
 
-```
-  Without rtk:                                    With rtk:
+## PowerShell Cmdlet TOML Filters
 
-  Claude  --git status-->  shell  -->  git         Claude  --git status-->  RTK  -->  git
-    ^                                   |            ^                      |          |
-    |        ~2,000 tokens (raw)        |            |   ~200 tokens        | filter   |
-    +-----------------------------------+            +------- (filtered) ---+----------+
-```
+15 TOML filter files enable RTK to strip headers, progress bars, and noise from PowerShell command output when routed through `rtk proxy` or the OpenCode plugin hook:
 
-Four strategies applied per command type:
+`Get-ChildItem`, `Select-String`, `Get-Content`, `Measure-Object`, `Get-Process`, `Get-Service`, `Get-Help`, `Where-Object`, `Compare-Object`, `Get-Item`, `Get-Date`, `Get-Command`, `Get-Member`, `Get-Alias`, `Invoke-Command`
 
-1. **Smart Filtering** - Removes noise (comments, whitespace, boilerplate)
-2. **Grouping** - Aggregates similar items (files by directory, errors by type)
-3. **Truncation** - Keeps relevant context, cuts redundancy
-4. **Deduplication** - Collapses repeated log lines with counts
+All filters use `(?i)` case-insensitive matching and apply `strip_ansi`, `max_lines`, and `truncate_lines_at` for compact output.
 
-## Commands
+## Windows-Specific TOML Filters
 
-### Files
-```bash
-rtk ls .                        # Token-optimized directory tree
-rtk read file.rs                # Smart file reading
-rtk read file.rs -l aggressive  # Signatures only (strips bodies)
-rtk smart file.rs               # 2-line heuristic code summary
-rtk find "*.rs" .               # Compact find results
-rtk grep "pattern" .            # Grouped search results
-rtk diff file1 file2            # Condensed diff (exit 1 if files differ)
-```
+- **`winget`** — Strips leading progress noise, ANSI spinner garbage, truncates long ARP paths, limits to 40 rows
+- **`tasklist`** — Limits to 40 processes, truncates long lines at 80 chars
+- **`systeminfo`** — Strips blank lines, limits to 30 key-value pairs
 
-### Git
-```bash
-rtk git status                  # Compact status
-rtk git log -n 10               # One-line commits
-rtk git diff                    # Condensed diff
-rtk git add                     # -> "ok"
-rtk git commit -m "msg"         # -> "ok abc1234"
-rtk git push                    # -> "ok main"
-rtk git pull                    # -> "ok 3 files +10 -2"
-```
-
-### GitHub CLI
-```bash
-rtk gh pr list                  # Compact PR listing
-rtk gh pr view 42               # PR details + checks
-rtk gh issue list               # Compact issue listing
-rtk gh run list                 # Workflow run status
-```
-
-### Test Runners
-```bash
-rtk jest                        # Jest compact (failures only)
-rtk vitest                      # Vitest compact (failures only)
-rtk playwright test             # E2E results (failures only)
-rtk pytest                      # Python tests (-90%)
-rtk go test                     # Go tests (NDJSON, -90%)
-rtk cargo test                  # Cargo tests (-90%)
-rtk rake test                   # Ruby minitest (-90%)
-rtk rspec                       # RSpec tests (JSON, -60%+)
-rtk err <cmd>                   # Filter errors only from any command
-rtk test <cmd>                  # Generic test wrapper - failures only (-90%)
-```
-
-### Build & Lint
-```bash
-rtk lint                        # ESLint grouped by rule/file
-rtk lint biome                  # Supports other linters
-rtk tsc                         # TypeScript errors grouped by file
-rtk next build                  # Next.js build compact
-rtk prettier --check .          # Files needing formatting
-rtk cargo build                 # Cargo build (-80%)
-rtk cargo clippy                # Cargo clippy (-80%)
-rtk ruff check                  # Python linting (JSON, -80%)
-rtk golangci-lint run           # Go linting (JSON, -85%)
-rtk rubocop                     # Ruby linting (JSON, -60%+)
-```
-
-### Package Managers
-```bash
-rtk pnpm list                   # Compact dependency tree
-rtk pip list                    # Python packages (auto-detect uv)
-rtk pip outdated                # Outdated packages
-rtk bundle install              # Ruby gems (strip Using lines)
-rtk prisma generate             # Schema generation (no ASCII art)
-```
-
-### AWS
-```bash
-rtk aws sts get-caller-identity # One-line identity
-rtk aws ec2 describe-instances  # Compact instance list
-rtk aws lambda list-functions   # Name/runtime/memory (strips secrets)
-rtk aws logs get-log-events     # Timestamped messages only
-rtk aws cloudformation describe-stack-events  # Failures first
-rtk aws dynamodb scan           # Unwraps type annotations
-rtk aws iam list-roles          # Strips policy documents
-rtk aws s3 ls                   # Truncated with tee recovery
-```
-
-### Containers
-```bash
-rtk docker ps                   # Compact container list
-rtk docker images               # Compact image list
-rtk docker logs <container>     # Deduplicated logs
-rtk docker compose ps           # Compose services
-rtk kubectl pods                # Compact pod list
-rtk kubectl logs <pod>          # Deduplicated logs
-rtk kubectl services            # Compact service list
-rtk oc get pods                 # OpenShift pod summary
-rtk oc get services             # OpenShift service list
-rtk oc logs <pod>               # Deduplicated logs
-```
-
-### Infrastructure as Code
-```bash
-rtk pulumi preview              # Strip header/URL/duration noise
-rtk pulumi up                   # Compact apply output
-rtk pulumi destroy              # Compact destroy output
-rtk pulumi refresh              # Drift summary
-rtk pulumi stack                # Stack metadata (strips owner/timestamps)
-```
-
-### Data & Analytics
-```bash
-rtk json config.json            # Structure without values
-rtk deps                        # Dependencies summary
-rtk env -f AWS                  # Filtered env vars
-rtk log app.log                 # Deduplicated logs
-rtk curl <url>                  # Truncate + save full output
-rtk wget <url>                  # Download, strip progress bars
-rtk summary <long command>      # Heuristic summary
-rtk proxy <command>             # Raw passthrough + tracking
-```
-
-### Token Savings Analytics
-```bash
-rtk gain                        # Summary stats
-rtk gain --graph                # ASCII graph (last 30 days)
-rtk gain --history              # Recent command history
-rtk gain --daily                # Day-by-day breakdown
-rtk gain --all --format json    # JSON export for dashboards
-
-rtk discover                    # Find missed savings opportunities
-rtk discover --all --since 7    # All projects, last 7 days
-
-rtk session                     # Show RTK adoption across recent sessions
-```
-
-## Global Flags
-
-```bash
--u, --ultra-compact    # ASCII icons, inline format (extra token savings)
--v, --verbose          # Increase verbosity (-v, -vv, -vvv)
-```
-
-## Examples
-
-**Directory listing:**
-```
-# ls -la (45 lines, ~800 tokens)        # rtk ls (12 lines, ~150 tokens)
-drwxr-xr-x  15 user staff 480 ...       my-project/
--rw-r--r--   1 user staff 1234 ...       +-- src/ (8 files)
-...                                      |   +-- main.rs
-                                         +-- Cargo.toml
-```
-
-**Git operations:**
-```
-# git push (15 lines, ~200 tokens)       # rtk git push (1 line, ~10 tokens)
-Enumerating objects: 5, done.             ok main
-Counting objects: 100% (5/5), done.
-Delta compression using up to 8 threads
-...
-```
-
-**Test output:**
-```
-# cargo test (200+ lines on failure)     # rtk test cargo test (~20 lines)
-running 15 tests                          FAILED: 2/15 tests
-test utils::test_parse ... ok               test_edge_case: assertion failed
-test utils::test_format ... ok              test_overflow: panic at utils.rs:18
-...
-```
-
-## Auto-Rewrite Hook
-
-The most effective way to use rtk. The hook transparently intercepts Bash commands and rewrites them to rtk equivalents before execution.
-
-**Result**: 100% rtk adoption across all conversations and subagents, zero token overhead.
-
-**Scope note:** this only applies to Bash tool calls. Claude Code built-in tools such as `Read`, `Grep`, and `Glob` bypass the hook, so use shell commands or explicit `rtk` commands when you want RTK filtering there.
-
-### Setup
-
-```bash
-rtk init -g                 # Install hook + RTK.md (recommended)
-rtk init -g --opencode      # OpenCode plugin (instead of Claude Code)
-rtk init -g --auto-patch    # Non-interactive (CI/CD)
-rtk init -g --hook-only     # Hook only, no RTK.md
-rtk init --show             # Verify installation
-```
-
-After install, **restart Claude Code**.
-
-## Windows
-
-RTK works on Windows with some limitations. The auto-rewrite hook (`rtk-rewrite.sh`) requires a Unix shell, so on native Windows RTK falls back to **CLAUDE.md injection mode** — your AI assistant receives RTK instructions but commands are not rewritten automatically.
-
-### Recommended: WSL (full support)
-
-For the best experience, use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) (Windows Subsystem for Linux). Inside WSL, RTK works exactly like Linux — full hook support, auto-rewrite, everything:
-
-```bash
-# Inside WSL
-curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
-rtk init -g
-```
-
-### Native Windows (limited support)
-
-On native Windows (cmd.exe / PowerShell), RTK filters work but the hook does not auto-rewrite commands:
+## Build & Test
 
 ```powershell
-# 1. Download and extract rtk-x86_64-pc-windows-msvc.zip from releases
-# 2. Add rtk.exe to your PATH
-# 3. Initialize (falls back to CLAUDE.md injection)
-rtk init -g
-# 4. Use rtk explicitly
-rtk cargo test
-rtk git status
+cargo build --release
+cargo fmt --all
+cargo clippy --all-targets
+cargo test                        # 2222+ pass, 0 fail
+.\scripts\benchmark.ps1           # Run Windows benchmark
 ```
 
-**Important**: Do not double-click `rtk.exe` — it is a CLI tool that prints usage and exits immediately. Always run it from a terminal (Command Prompt, PowerShell, or Windows Terminal).
+> **Note**: Full `cargo test` requires `[profile.test] debug = 0` in `Cargo.toml` to avoid OOM during debug test compilation on Windows.
 
-| Feature | WSL | Native Windows |
-|---------|-----|----------------|
-| Filters (cargo, git, etc.) | Full | Full |
-| Auto-rewrite hook | Yes | No (CLAUDE.md fallback) |
-| `rtk init -g` | Hook mode | CLAUDE.md mode |
-| `rtk gain` / analytics | Full | Full |
-
-## Supported AI Tools
-
-RTK supports 14 AI coding tools. Each integration rewrites shell commands to `rtk` equivalents for 60-90% token savings where the agent supports command interception.
-
-| Tool | Install | Method |
-|------|---------|--------|
-| **Claude Code** | `rtk init -g` | PreToolUse hook (bash) |
-| **GitHub Copilot (VS Code)** | `rtk init -g --copilot` | PreToolUse hook — transparent rewrite |
-| **GitHub Copilot CLI** | `rtk init -g --copilot` | PreToolUse deny-with-suggestion (CLI limitation) |
-| **Cursor** | `rtk init -g --agent cursor` | preToolUse hook (hooks.json) |
-| **Gemini CLI** | `rtk init -g --gemini` | BeforeTool hook |
-| **Codex** | `rtk init -g --codex` | AGENTS.md + RTK.md instructions |
-| **Windsurf** | `rtk init -g --agent windsurf` | .windsurfrules (project-scoped) |
-| **Cline / Roo Code** | `rtk init --agent cline` | .clinerules (project-scoped) |
-| **OpenCode** | `rtk init -g --opencode` | Plugin TS (tool.execute.before) |
-| **OpenClaw** | `openclaw plugins install ./openclaw` | Plugin TS (before_tool_call) |
-| **Pi** | `rtk init -g --agent pi` (global) | TypeScript extension (tool_call) |
-| **Hermes** | `rtk init --agent hermes` | Python plugin adapter (terminal command mutation via `rtk rewrite`) |
-| **Mistral Vibe** | Planned ([#800](https://github.com/rtk-ai/rtk/issues/800)) | Blocked on upstream |
-| **Kilo Code** | `rtk init --agent kilocode` | .kilocode/rules/rtk-rules.md (project-scoped) |
-| **Google Antigravity** | `rtk init --agent antigravity` | .agents/rules/antigravity-rtk-rules.md (project-scoped) |
-
-For per-agent setup details, override controls, and graceful degradation, see the [Supported Agents guide](https://www.rtk-ai.app/guide/getting-started/supported-agents). The Hermes plugin source and tests live in `hooks/hermes/`; installed Hermes runtime files still live under `~/.hermes/plugins/rtk-rewrite/`.
-
-## Configuration
-
-`~/.config/rtk/config.toml` (macOS: `~/Library/Application Support/rtk/config.toml`):
-
-```toml
-[hooks]
-exclude_commands = ["curl", "playwright"]  # skip rewrite for these
-
-[tee]
-enabled = true          # save raw output on failure (default: true)
-mode = "failures"       # "failures", "always", or "never"
-```
-
-When a command fails, RTK saves the full unfiltered output so the LLM can read it without re-executing:
+## Architecture
 
 ```
-FAILED: 2/15 tests
-[full output: ~/.local/share/rtk/tee/1707753600_cargo_test.log]
+CLI request  →  main.rs (Clap dispatch)
+                    ├── Rust-native handler (ls, tree, wc, find, git, cargo, ...)
+                    └── run_fallback()
+                          └── TOML filter match
+                                └── execute real command + apply filter pipeline
+                                      (strip_ansi → replace → strip_lines → 
+                                       truncate → head/tail → max_lines → on_empty)
 ```
 
-For the full config reference (all sections, env vars, per-project filters), see the [Configuration guide](https://www.rtk-ai.app/guide/getting-started/configuration).
+For full details, see [ARCHITECTURE.md](docs/contributing/ARCHITECTURE.md) and [CONTRIBUTING.md](CONTRIBUTING.md) (upstream docs, mostly applicable).
 
-### Uninstall
+## Differences from Upstream v0.43.0
 
-```bash
-rtk init -g --uninstall     # Remove hook, RTK.md, settings.json entry
-cargo uninstall rtk          # Remove binary
-brew uninstall rtk           # If installed via Homebrew
-```
-
-## Documentation
-
-- **[rtk-ai.app/guide](https://www.rtk-ai.app/guide)** — full user guide (installation, supported agents, what gets optimized, analytics, configuration, troubleshooting)
-- **[INSTALL.md](INSTALL.md)** — detailed installation reference
-- **[ARCHITECTURE.md](docs/contributing/ARCHITECTURE.md)** — system design and technical decisions
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** — contribution guide
-- **[SECURITY.md](SECURITY.md)** — security policy
-
-## Privacy & Telemetry
-
-RTK can collect **anonymous, aggregate usage metrics** once per day. Telemetry is **disabled by default** and requires **explicit opt-in consent** (GDPR Art. 6, 7) during `rtk init` or via `rtk telemetry enable`. This data helps us build a better product: identifying which commands need filters, which filters need improvement, and how much value RTK delivers. For the full list of fields, data handling, and contributor guidelines, see **[docs/TELEMETRY.md](docs/TELEMETRY.md)**.
-
-**What is collected and why:**
-
-| Category | Data | Why |
-|----------|------|-----|
-| Identity | Salted device hash (SHA-256, not reversible) | Count unique installations without tracking individuals |
-| Environment | RTK version, OS, architecture, install method | Know which platforms to support and test |
-| Usage volume | Command count (24h), total commands, tokens saved (24h/30d/total) | Measure adoption and value delivered |
-| Quality | Top 5 passthrough commands (0% savings), parse failure count, commands with <30% savings | Identify missing filters and weak ones to improve |
-| Ecosystem | Command category distribution (e.g. git 45%, cargo 20%, js 15%) | Prioritize filter development for popular ecosystems |
-| Retention | Days since first use, active days in last 30 | Understand engagement and detect churn |
-| Adoption | AI agent hook type (claude/gemini/codex), custom TOML filter count | Track integration coverage and DSL adoption |
-| Configuration | Whether config.toml exists, number of excluded commands, project count | Understand user maturity and customization patterns |
-| Features | Usage counts for meta-commands (gain, discover, proxy, verify) | Know which RTK features are valued vs unused |
-| Economics | Estimated USD savings (based on API token pricing) | Quantify the value RTK provides to users |
-
-All data is **aggregate counts or anonymized command names** (first 3 words, no arguments). Top commands report only tool names (e.g. "git", "cargo"), never full command lines.
-
-**What is NOT collected:** source code, file paths, command arguments, secrets, environment variables, personal data, or repository contents.
-
-**Manage telemetry:**
-```bash
-rtk telemetry status     # Check current consent state
-rtk telemetry enable     # Give consent (interactive prompt)
-rtk telemetry disable    # Withdraw consent — stops all collection immediately
-rtk telemetry forget     # Withdraw consent + delete all local data + request server-side erasure
-```
-
-**Override via environment:**
-```bash
-export RTK_TELEMETRY_DISABLED=1   # Blocks telemetry regardless of consent
-```
-
-## Star History
-
-<a href="https://www.star-history.com/?repos=rtk-ai%2Frtk&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=rtk-ai/rtk&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=rtk-ai/rtk&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=rtk-ai/rtk&type=date&legend=top-left" />
- </picture>
-</a>
-
-## StarMapper
-
-<a href="https://starmapper.bruniaux.com/rtk-ai/rtk">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://starmapper.bruniaux.com/api/map-image/rtk-ai/rtk?theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://starmapper.bruniaux.com/api/map-image/rtk-ai/rtk?theme=light" />
-    <img alt="StarMapper" src="https://starmapper.bruniaux.com/api/map-image/rtk-ai/rtk" />
-  </picture>
-</a>
-
-## Core team
-
-- **Patrick Szymkowiak** — Founder
-  [GitHub](https://github.com/pszymkowiak) · [LinkedIn](https://www.linkedin.com/in/patrick-szymkowiak/)
-- **Florian Bruniaux** — Core contributor
-  [GitHub](https://github.com/FlorianBruniaux) · [LinkedIn](https://www.linkedin.com/in/florian-bruniaux-43408b83/)
-- **Adrien Eppling** — Core contributor
-  [GitHub](https://github.com/aeppling) · [LinkedIn](https://www.linkedin.com/in/adrien-eppling/)
-
-## Contributing
-
-Contributions welcome! Please open an issue or PR on [GitHub](https://github.com/rtk-ai/rtk).
-
-Join the community on [Discord](https://discord.gg/RySmvNF5kF).
+- Removed all `#[cfg(unix)]` blocks across 6 files: `main.rs`, `core/utils.rs`, `core/stream.rs`, `core/telemetry.rs`, `hooks/integrity.rs`, `hooks/init.rs`
+- Removed `libc` dependency from `Cargo.toml`
+- Added `/STACK:8388608` linker flag in `build.rs` for Windows stack size
+- Replaced `ls.rs`, `tree.rs`, `wc_cmd.rs` with Rust-native implementations
+- Added `tool_exists` check in `search.rs` with Windows-friendly error message
+- Gemini hook changed from `.sh` to `.ps1` extension
+- Added 81 built-in TOML filters (41 upstream + 22 upstream additions + 15 PowerShell + winget + systeminfo + tasklist)
+- Added `install.ps1` for Windows-native installation
+- Added `scripts/benchmark.ps1` for Windows benchmarking
+- Added `[profile.test] debug = 0` to prevent OOM during test compilation
 
 ## License
 
-Apache License 2.0 - see [LICENSE](LICENSE) for details.
+Apache License 2.0 — see [LICENSE](LICENSE).
 
-## Disclaimer
-
-See [DISCLAIMER.md](DISCLAIMER.md).
+Forked from [rtk-ai/rtk](https://github.com/rtk-ai/rtk) v0.43.0.

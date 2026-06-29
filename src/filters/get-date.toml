@@ -1,0 +1,10 @@
+[filters.get-date]
+description = "Compact Get-Date output — single-line format"
+match_command = "(?i)^(Get-Date|gdate|date)(\\s|$)"
+strip_ansi = true
+max_lines = 5
+
+[[tests.get-date]]
+name = "short output passes through"
+input = "Monday, June 29, 2026 10:30:00 AM"
+expected = "Monday, June 29, 2026 10:30:00 AM"

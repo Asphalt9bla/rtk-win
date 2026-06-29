@@ -72,6 +72,7 @@ impl<'a> RunOptions<'a> {
         self
     }
 
+    #[expect(dead_code)]
     pub fn inherit_stdin(mut self) -> Self {
         self.inherit_stdin = true;
         self

@@ -487,10 +487,6 @@ pub fn run_cursor() -> Result<()> {
             audit_log("rewrite", &cmd, &rewritten);
             cursor_allow(&rewritten)
         }
-        HookDecision::AskRewrite(rewritten) => {
-            audit_log("ask", &cmd, &rewritten);
-            cursor_ask(&rewritten)
-        }
         other => {
             if matches!(other, HookDecision::Deny) {
                 audit_log("deny", &cmd, "");
@@ -506,15 +502,6 @@ fn cursor_allow(rewritten: &str) -> String {
     json!({
         "continue": true,
         "permission": "allow",
-        "updated_input": { "command": rewritten }
-    })
-    .to_string()
-}
-
-fn cursor_ask(rewritten: &str) -> String {
-    json!({
-        "continue": true,
-        "permission": "ask",
         "updated_input": { "command": rewritten }
     })
     .to_string()
@@ -550,7 +537,6 @@ fn run_cursor_inner_with_rules(
     let verdict = permissions::check_command_with_rules(&cmd, deny_rules, ask_rules, allow_rules);
     match decide_from_verdict(&cmd, verdict) {
         HookDecision::AllowRewrite(rewritten) => cursor_allow(&rewritten),
-        HookDecision::AskRewrite(rewritten) => cursor_ask(&rewritten),
         _ => "{}".to_string(),
     }
 }
@@ -1060,11 +1046,8 @@ mod tests {
     }
 
     #[test]
-    fn test_cursor_default_verdict_rewrites() {
-        let result = run_cursor_inner(&cursor_input("git status"));
-        let v: Value = serde_json::from_str(&result).unwrap();
-        assert_eq!(v["permission"], "ask");
-        assert_eq!(v["updated_input"]["command"], "rtk git status");
+    fn test_cursor_no_allow_rule_defers() {
+        assert_eq!(run_cursor_inner(&cursor_input("git status")), "{}");
     }
 
     #[test]
@@ -1080,15 +1063,14 @@ mod tests {
     }
 
     #[test]
-    fn test_cursor_unallowed_segment_asks() {
+    fn test_cursor_unallowed_segment_defers() {
         let out = run_cursor_inner_with_rules(
             &cursor_input("git status && rm -rf /tmp/x"),
             &[],
             &[],
             &["git *".to_string()],
         );
-        let v: Value = serde_json::from_str(&out).unwrap();
-        assert_eq!(v["permission"], "ask");
+        assert_eq!(out, "{}");
     }
 
     #[test]

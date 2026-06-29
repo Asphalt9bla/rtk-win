@@ -1,0 +1,11 @@
+[filters.get-help]
+description = "Compact Get-Help output — limit rows"
+match_command = "(?i)^(Get-Help|help|man)(\\s|$)"
+strip_ansi = true
+strip_lines_matching = ["^\\s*$"]
+max_lines = 40
+
+[[tests.get-help]]
+name = "short output passes through"
+input = "NAME\n    Get-ChildItem\n\nSYNOPSIS\n    Gets items in a directory."
+expected = "NAME\n    Get-ChildItem\n\nSYNOPSIS\n    Gets items in a directory."

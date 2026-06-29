@@ -1,0 +1,10 @@
+[filters.get-content]
+description = "Compact Get-Content output — limit rows"
+match_command = "(?i)^(Get-Content|gc|cat|type)(\\s|$)"
+strip_ansi = true
+max_lines = 100
+
+[[tests.get-content]]
+name = "short output passes through"
+input = "line1\nline2\nline3"
+expected = "line1\nline2\nline3"

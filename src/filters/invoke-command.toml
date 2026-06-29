@@ -1,0 +1,11 @@
+[filters.invoke-command]
+description = "Compact Invoke-Command output — limit rows"
+match_command = "(?i)^(Invoke-Command|icm)(\\s|$)"
+strip_ansi = true
+truncate_lines_at = 150
+max_lines = 50
+
+[[tests.invoke-command]]
+name = "short output passes through"
+input = "PSComputerName  RunspaceId  Value\n--------------  ----------  -----\nlocalhost  xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx  42"
+expected = "PSComputerName  RunspaceId  Value\n--------------  ----------  -----\nlocalhost  xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx  42"

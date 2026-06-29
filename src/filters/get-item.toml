@@ -1,0 +1,10 @@
+[filters.get-item]
+description = "Compact Get-Item output — limit rows"
+match_command = "(?i)^(Get-Item|gi)(\\s|$)"
+strip_ansi = true
+max_lines = 30
+
+[[tests.get-item]]
+name = "short output passes through"
+input = "Directory: C:\\Users\\test\n\nMode  LastWriteTime  Length  Name\n----  -------------  ------  ----\n-a---  1/1/2024  12:00  100  file.txt"
+expected = "Directory: C:\\Users\\test\n\nMode  LastWriteTime  Length  Name\n----  -------------  ------  ----\n-a---  1/1/2024  12:00  100  file.txt"
